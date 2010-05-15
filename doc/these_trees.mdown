@@ -1,0 +1,18 @@
+Tree Structure
+==========
+
+Luwak stores its file data as an immutable hash tree.  Therefore writing to this tree causes new subtrees to be generated rather than mutating the existing tree.  This document describes how reading and writing from these trees will work.
+
+This document assumes some properties will hold true for luwak trees:
+
+1. Luwak tree nodes are several orders of magnitude smaller than tree leaves (data blocks) in terms of memory consumption
+2. The probability of a hash conflict is so small that the occurrence of one must point to the existence of a malevolent personal deity.
+
+Tree Writing
+==========
+
+The interface for luwak allows for writing to the tree with an arbitrary offset and length, like a traditional file API.  This algorithm tries to minimize the copying of existing data within the underlying key-value store.  The reason we attempt to minimize copying is the assumption that higher fragmentation is preferable to the higher bandwidth consumption that would occur during large copies.
+
+In order to ensure low latency writes to files, luwak writes will always start with an empty block, regardless of the starting offset for the write.  The idea is to be able to accept a write without first waiting on a read.  The reason why we'd want to accept more fragmentation is the assumption stated earlier in this document: that blocks are very large and relatively expensive to read or write.
+
+Therefore, for a single write operation a number of blocks will be immediately written to the datastore, dependending whether or not the write will span beyond a single block size.

@@ -1,0 +1,3 @@
+[submodule "apps/skerl"]
+	path = apps/skerl
+	url = git@github.com:cliffmoon/skerl.git
