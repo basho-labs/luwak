@@ -13,6 +13,32 @@ Tree Writing
 
 The interface for luwak allows for writing to the tree with an arbitrary offset and length, like a traditional file API.  This algorithm tries to minimize the copying of existing data within the underlying key-value store.  The reason we attempt to minimize copying is the assumption that higher fragmentation is preferable to the higher bandwidth consumption that would occur during large copies.
 
-In order to ensure low latency writes to files, luwak writes will always start with an empty block, regardless of the starting offset for the write.  The idea is to be able to accept a write without first waiting on a read.  The reason why we'd want to accept more fragmentation is the assumption stated earlier in this document: that blocks are very large and relatively expensive to read or write.
+When luwak accepts a write it will generally come in one of two forms: either a write will be aligned on a block boundary or it will not be aligned on a block boundary.  Luwak is optimized for the case when writes occur on block boundaries.  On block aligned writes, a completely new block will be created.  If the ending block of a write stream is not aligned on a block boundary, then the ending block of the stream is looked up and mutated, then this is stored as the ending block.
 
-Therefore, for a single write operation a number of blocks will be immediately written to the datastore, dependending whether or not the write will span beyond a single block size.
+    [  B1  ] [  B2  ] [  B3  ] [  B4  ]
+        [       write 1    ]
+    fetch B1
+    write B1'
+    write W2
+    fetch B3
+    write B3'
+    [  B1' ] [  W2  ] [  B3' ] [  B4  ]
+    
+    
+<li>figure 1 - Start and end unaligned write</li>
+
+    [  B1  ] [  B2  ] [  B3  ] [  B4  ]
+             [    write 1    ]
+    write W1
+    write W2
+    [  B1  ] [  W1  ] [  W2  ] [  B4  ]
+    
+<li>figure 2 - Start and end aligned write</li>
+
+    [  B1  ] [  B2  ]
+                      [    write 1    ]
+    write W1
+    write W2
+    [  B1  ] [  B2  ] [  W1  ] [  W2  ]
+    
+<li>figure 3 - Appending write</li>
