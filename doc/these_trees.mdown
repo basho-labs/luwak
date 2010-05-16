@@ -55,3 +55,12 @@ After the blocks are written, the tree for the file is updated.  The tree update
 * repeat until a parent is found that need not split
 * if the root splits, create a new root which has one key and two pointers
 
+Tree Nodes
+----
+
+    [ ...
+    {links, [{"node1", 50}, {"node2", 100}]}
+    ...]
+    
+<li>figure 4 - Example of a node</li>
+
