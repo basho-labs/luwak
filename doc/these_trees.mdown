@@ -42,3 +42,16 @@ When luwak accepts a write it will generally come in one of two forms: either a 
     [  B1  ] [  B2  ] [  W1  ] [  W2  ]
     
 <li>figure 3 - Appending write</li>
+
+After the blocks are written, the tree for the file is updated.  The tree update at this point is handled in a similar manner to a normal b+ tree:
+
+* do a search to determine what bucket the new record should go in
+* if the bucket is not full, add the record.
+* otherwise, split the bucket.
+* allocate new leaf and move half the bucket's elements to the new bucket
+* insert the new leaf's smallest key and address into the parent.
+* if the parent is full, split it also
+* now add the middle key to the parent node
+* repeat until a parent is found that need not split
+* if the root splits, create a new root which has one key and two pointers
+
