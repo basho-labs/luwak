@@ -1,6 +1,6 @@
 -module(luwak_obj).
 
--export([create/3, set_attributes/3, get_attributes/2, exists/2, delete/2]).
+-export([create/3, set_attributes/3, get_attributes/1, exists/2, delete/2, get/2, get_property/2]).
 
 -define(B_OBJ, <<"luwak_tld">>).
 -define(BLOCK_DEFAULT, 1000000).
@@ -19,26 +19,18 @@ create(Riak, Name, Attributes) when is_binary(Name) ->
     {created, now()},
     {modified, now()},
     {ancestors, []},
-    {links, []}
+    {root, undefined}
   ],
   Obj = riak_object:new(?B_OBJ, Name, Value),
   Riak:put(Obj, 2).
   
-set_attributes(Riak, Name, Attributes) ->
-  case Riak:get(?B_OBJ, Name, 2) of
-    {ok, Obj} ->
-      Value = lists:keyreplace(attributes, 1, riak_obj:get_value(Obj), {attributes, Attributes}),
-      Obj2 = riak_obj:update_value(Obj, Value),
-      Riak:put(Obj2, 2);
-    Err -> Err
-  end.
+set_attributes(Riak, Obj, Attributes) ->
+  Value = lists:keyreplace(attributes, 1, riak_object:get_value(Obj), {attributes, Attributes}),
+  Obj2 = riak_object:update_value(Obj, Value),
+  Riak:put(Obj2, 2).
   
-get_attributes(Riak, Name) ->
-  case Riak:get(?B_OBJ, Name, 2) of
-    {ok, Obj} ->
-      {ok, proplist:get_value(attributes, riak_obj:get_value(Obj))};
-    Err -> Err
-  end.
+get_attributes(Obj) ->
+  proplists:get_value(attributes, riak_object:get_value(Obj)).
   
 exists(Riak, Name) ->
   case Riak:get(?B_OBJ, Name, 2) of
@@ -47,5 +39,10 @@ exists(Riak, Name) ->
   end.
   
 delete(Riak, Name) ->
-  case Riak:delete(?B_OBJ, Name, 2).
+  Riak:delete(?B_OBJ, Name, 2).
 
+get(Riak, Name) ->
+  Riak:get(?B_OBJ, Name, 2).
+  
+get_property(Obj, PropName) ->
+  proplists:get_value(PropName, riak_object:get_value(Obj)).
