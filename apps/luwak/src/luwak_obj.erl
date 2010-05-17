@@ -22,12 +22,12 @@ create(Riak, Name, Attributes) when is_binary(Name) ->
     {root, undefined}
   ],
   Obj = riak_object:new(?B_OBJ, Name, Value),
-  Riak:put(Obj, 2).
+  {Riak:put(Obj, 2), Obj}.
   
 set_attributes(Riak, Obj, Attributes) ->
   Value = lists:keyreplace(attributes, 1, riak_object:get_value(Obj), {attributes, Attributes}),
-  Obj2 = riak_object:update_value(Obj, Value),
-  Riak:put(Obj2, 2).
+  Obj2 = riak_object:apply_updates(riak_object:update_value(Obj, Value)),
+  {Riak:put(Obj2, 2), Obj2}.
   
 get_attributes(Obj) ->
   proplists:get_value(attributes, riak_object:get_value(Obj)).
