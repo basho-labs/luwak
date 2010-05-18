@@ -35,6 +35,7 @@ get_attributes(Obj) ->
 exists(Riak, Name) ->
   case Riak:get(?B_OBJ, Name, 2) of
     {ok, Obj} -> {ok, true};
+    {error, notfound} -> {ok, false};
     Err -> Err
   end.
   
