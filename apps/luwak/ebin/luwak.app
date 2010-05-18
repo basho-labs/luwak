@@ -6,6 +6,7 @@
              luwak_app,
              luwak_sup,
              luwak_io,
+             luwak_block,
              luwak_obj,
              luwak_stream,
              luwak_tree
