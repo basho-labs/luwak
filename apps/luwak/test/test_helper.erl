@@ -4,7 +4,8 @@
 
 riak_test(Fun) ->
   start_riak(),
-  Ret = (catch Fun()),
+  {ok, Riak} = riak:local_client(),
+  Ret = (catch Fun(Riak)),
   stop_riak(),
   case Ret of
     {'EXIT', Err} -> throw(Err);
