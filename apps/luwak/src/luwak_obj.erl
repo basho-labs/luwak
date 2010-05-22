@@ -2,8 +2,7 @@
 
 -export([create/3, set_attributes/3, get_attributes/1, exists/2, delete/2, get/2, get_property/2]).
 
--define(B_OBJ, <<"luwak_tld">>).
--define(BLOCK_DEFAULT, 1000000).
+-include_lib("luwak/include/luwak.hrl").
 
 %% @spec create(Riak :: riak(), Name :: binary(), Attributes :: dict())
 %%        -> {ok, }
@@ -12,16 +11,21 @@ create(Riak, Name, Attributes) when is_binary(Name) ->
     {ok, V} -> V;
     error -> ?BLOCK_DEFAULT
   end,
+  Order = case dict:find(tree_order, Attributes) of
+    {ok, O} -> O;
+    error -> ?ORDER_DEFAULT
+  end,
   Value = [
     {attributes, Attributes},
     {block_size, BlockSize},
     {length, 0},
     {created, now()},
     {modified, now()},
+    {tree_order, Order},
     {ancestors, []},
     {root, undefined}
   ],
-  Obj = riak_object:new(?B_OBJ, Name, Value),
+  Obj = riak_object:new(?O_BUCKET, Name, Value),
   {Riak:put(Obj, 2), Obj}.
   
 set_attributes(Riak, Obj, Attributes) ->
@@ -33,17 +37,17 @@ get_attributes(Obj) ->
   proplists:get_value(attributes, riak_object:get_value(Obj)).
   
 exists(Riak, Name) ->
-  case Riak:get(?B_OBJ, Name, 2) of
+  case Riak:get(?O_BUCKET, Name, 2) of
     {ok, Obj} -> {ok, true};
     {error, notfound} -> {ok, false};
     Err -> Err
   end.
   
 delete(Riak, Name) ->
-  Riak:delete(?B_OBJ, Name, 2).
+  Riak:delete(?O_BUCKET, Name, 2).
 
 get(Riak, Name) ->
-  Riak:get(?B_OBJ, Name, 2).
+  Riak:get(?O_BUCKET, Name, 2).
   
 get_property(Obj, PropName) ->
   proplists:get_value(PropName, riak_object:get_value(Obj)).

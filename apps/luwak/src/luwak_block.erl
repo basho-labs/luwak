@@ -1,6 +1,6 @@
 -module(luwak_block).
 
--define(BUCKET, <<"luwak_node">>).
+-include_lib("luwak/include/luwak.hrl").
 
 -export([create/2, data/1, name/1]).
 
@@ -9,8 +9,8 @@ create(Riak, Data) ->
     {data, Data},
     {created, now()},
     {type, block}],
-  {ok, Hash} = skerl:hash(512, Data),
-  Obj = riak_object:new(?BUCKET, list_to_binary(hex:bin_to_hexstr(Hash)), Value),
+  {ok, Hash} = skerl:hash(?HASH_LEN, Data),
+  Obj = riak_object:new(?N_BUCKET, list_to_binary(hex:bin_to_hexstr(Hash)), Value),
   {Riak:put(Obj,2), Obj}.
   
 data(Object) ->
