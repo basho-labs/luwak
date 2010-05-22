@@ -1,6 +1,7 @@
 -module(luwak_obj).
 
--export([create/3, set_attributes/3, get_attributes/1, exists/2, delete/2, get/2, get_property/2]).
+-export([create/3, set_attributes/3, get_attributes/1, exists/2, 
+         delete/2, get/2, get_property/2, update_root/3]).
 
 -include_lib("luwak/include/luwak.hrl").
 
@@ -51,3 +52,13 @@ get(Riak, Name) ->
   
 get_property(Obj, PropName) ->
   proplists:get_value(PropName, riak_object:get_value(Obj)).
+
+update_root(Riak, Obj, NewRoot) ->
+  Values = riak_object:get_value(Obj),
+  ObjVal1 = riak_object:get_value(Obj),
+  OldRoot = proplists:get_value(root, ObjVal1),
+  Ancestors = proplists:get_value(ancestors, ObjVal1),
+  ObjVal2 = lists:keyreplace(ancestors, 1, ObjVal1, {ancestors, [OldRoot|Ancestors]}),
+  ObjVal3 = lists:keyreplace(root, 1, ObjVal2, {root, NewRoot}),
+  Obj2 = riak_object:apply_updates(riak_object:update_value(Obj, ObjVal3)),
+  {Riak:put(Obj2, 2), Obj2}.
