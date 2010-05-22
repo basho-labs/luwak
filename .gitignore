@@ -1,1 +1,4 @@
 deps
+.eunit
+apps/luwak/ebin/*.beam
+data/*
