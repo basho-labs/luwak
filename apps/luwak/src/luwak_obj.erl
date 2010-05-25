@@ -50,8 +50,21 @@ delete(Riak, Name) ->
 get(Riak, Name) ->
   Riak:get(?O_BUCKET, Name, 2).
   
+get_property(Obj, type) ->
+  case riak_object:get_value(Obj) of
+    List when is_list(List) -> proplists:get_value(type, List);
+    #n{} -> node
+  end;
+get_property(Obj, links) ->
+  case riak_object:get_value(Obj) of
+    List when is_list(List) -> proplists:get_value(links, List);
+    #n{children=Children} -> Children
+  end;
 get_property(Obj, PropName) ->
-  proplists:get_value(PropName, riak_object:get_value(Obj)).
+  case riak_object:get_value(Obj) of
+    List when is_list(List) -> proplists:get_value(PropName, List);
+    _ -> undefined
+  end.
 
 update_root(Riak, Obj, NewRoot) ->
   Values = riak_object:get_value(Obj),
