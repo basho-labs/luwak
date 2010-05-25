@@ -20,27 +20,30 @@ truncate(Riak, Name, Start) ->
 %%==============================================
 internal_put_range(Riak, File, Start, Data) ->
   BlockSize = luwak_obj:get_property(File, block_size),
+  BlockAlignedStart = Start - (Start rem BlockSize),
   case (Start rem BlockSize) of
     0 ->
       {ok, Written} = write_blocks(Riak, File, undefined, Start, Data, BlockSize, []),
-      {ok, NewFile} = luwak_tree:update(Riak, File, Start, Written),
+      {ok, NewFile} = luwak_tree:update(Riak, File, BlockAlignedStart, Written),
       {ok, Written, NewFile};
     BlockOffset -> 
-      Block = luwak_tree:block_at(Riak, File, Start),
+      {ok, Block} = luwak_tree:block_at(Riak, File, Start),
       {ok, Written} = write_blocks(Riak, File, Block, Start, Data, BlockSize, []),
-      {ok, NewFile} = luwak_tree:update(Riak, File, Start, Written),
+      {ok, NewFile} = luwak_tree:update(Riak, File, BlockAlignedStart, Written),
       {ok, Written, NewFile}
   end.
 
-write_blocks(_, _, _, Start, <<>>, _, Written) ->
+write_blocks(_, _, _, Start, <<>>, _, Written) when is_list(Written) ->
+  error_logger:info_msg("A write_blocks(_, _, _, ~p, <<>>, _, ~p) ~n", [Start, Written]),
   {ok, lists:reverse(Written)};
 %% start aligned sub-block write
-write_blocks(Riak, File, undefined, Start, Data, BlockSize, Written) when byte_size(Data) < BlockSize ->
+write_blocks(Riak, File, undefined, Start, Data, BlockSize, Written) when is_list(Written), byte_size(Data) < BlockSize ->
+  error_logger:info_msg("B write_blocks(Riak, File, ~p, ~p, ~p, ~p, ~p) ~n", [undefined, Start, Data, BlockSize, Written]),
   DataSize = byte_size(Data),
   case luwak_tree:block_at(Riak, File, Start) of
     {ok, Block} ->
       <<_:DataSize/binary, Tail/binary>> = luwak_block:data(Block),
-      BlockData = <<Data, Tail>>,
+      BlockData = <<Data/binary, Tail/binary>>,
       {ok, NewBlock} = luwak_block:create(Riak, BlockData),
       {ok, lists:reverse([{luwak_block:name(NewBlock),byte_size(BlockData)}|Written])};
     {error, notfound} ->
@@ -48,22 +51,25 @@ write_blocks(Riak, File, undefined, Start, Data, BlockSize, Written) when byte_s
       {ok, lists:reverse([{luwak_block:name(NewBlock),byte_size(Data)}|Written])}
   end;
 %% fully aligned write
-write_blocks(Riak, File, undefined, Start, Data, BlockSize, Written) ->
+write_blocks(Riak, File, undefined, Start, Data, BlockSize, Written) when is_list(Written) ->
+  error_logger:info_msg("C write_blocks(Riak, File, ~p, ~p, ~p, ~p, ~p) ~n", [undefined, Start, Data, BlockSize, Written]),
   <<Slice:BlockSize/binary, Tail/binary>> = Data,
   {ok, Block} = luwak_block:create(Riak, Slice),
   write_blocks(Riak, File, undefined, Start+BlockSize, Tail, BlockSize, [{luwak_block:name(Block),BlockSize}|Written]);
 %% we are doing a sub-block write
-write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written) when byte_size(Data) < BlockSize ->
+write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written) when is_list(Written), byte_size(Data) < BlockSize ->
+  error_logger:info_msg("D write_blocks(Riak, File, ~p, ~p, ~p, ~p, ~p) ~n", [PartialStartBlock, Start, Data, BlockSize, Written]),
   DataSize = byte_size(Data),
   <<Head:Start/binary, _:DataSize/binary, Tail/binary>> = luwak_block:data(PartialStartBlock),
-  BlockData = <<Head, Data, Tail>>,
+  BlockData = <<Head/binary, Data/binary, Tail/binary>>,
   {ok, Block} = luwak_block:create(Riak, BlockData),
   {ok, lists:reverse([{luwak_block:name(Block),byte_size(BlockData)}|Written])};
 %% we are starting with a sub-block write
-write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written) ->  
-  <<Head:Start/binary, _/binary>> = luwak_block:data(PartialStartBlock),
-  BlockData = <<Head, Data>>,
-  {ok, Block} = luwak_block:create(Riak, BlockData),
+write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written) when is_list(Written) ->
+  error_logger:info_msg("E write_blocks(Riak, File, ~p, ~p, ~p, ~p, ~p) ~n", [PartialStartBlock, Start, Data, BlockSize, Written]),
   ChopDataSize = BlockSize - Start,
-  <<_:ChopDataSize/binary, Tail/binary>> = Data,
+  <<ChopData:ChopDataSize/binary, Tail/binary>> = Data,
+  <<Head:Start/binary, _/binary>> = luwak_block:data(PartialStartBlock),
+  BlockData = <<Head/binary, ChopData/binary>>,
+  {ok, Block} = luwak_block:create(Riak, BlockData),
   write_blocks(Riak, File, undefined, Start+byte_size(Data), Tail, BlockSize, [{luwak_block:name(Block),byte_size(BlockData)}|Written]).
