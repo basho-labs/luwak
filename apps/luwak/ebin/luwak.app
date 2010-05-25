@@ -9,7 +9,8 @@
              luwak_block,
              luwak_obj,
              luwak_stream,
-             luwak_tree
+             luwak_tree,
+             luwak_tree_utils
             ]},
   {registered, []},
   {applications, [
