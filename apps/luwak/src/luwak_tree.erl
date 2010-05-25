@@ -84,7 +84,6 @@ map_sublist_1(Fun, N, [E|List], Sublist, Acc) ->
 
 create_node(Riak, Children) ->
   N = #n{created=now(),children=Children},
-  {ok, BinHash} = skerl:hash(?HASH_LEN, term_to_binary(Children)),
-  Name = list_to_binary(hex:bin_to_hexstr(BinHash)),
+  Name = skerl:hexhash(?HASH_LEN, term_to_binary(Children)),
   Obj = riak_object:new(?N_BUCKET, Name, N),
   {Riak:put(Obj, 2), Obj}.

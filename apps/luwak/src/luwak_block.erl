@@ -9,8 +9,7 @@ create(Riak, Data) ->
     {data, Data},
     {created, now()},
     {type, block}],
-  {ok, Hash} = skerl:hash(?HASH_LEN, Data),
-  Obj = riak_object:new(?N_BUCKET, list_to_binary(hex:bin_to_hexstr(Hash)), Value),
+  Obj = riak_object:new(?N_BUCKET, skerl:hexhash(?HASH_LEN, Data), Value),
   {Riak:put(Obj,2), Obj}.
   
 data(Object) ->
