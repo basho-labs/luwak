@@ -7,9 +7,13 @@
 %%=======================================
 %% Public API
 %%=======================================
-
 update(Riak, File, StartingPos, Blocks) ->
   Order = luwak_obj:get_property(File, tree_order),
+  BlockSize = luwak_obj:get_property(File, block_size),
+  if
+    StartingPos rem BlockSize =/= 0 -> throw({error, "StartingPos must be a multiple of blocksize"});
+    true -> ok
+  end,
   case luwak_obj:get_property(File, root) of
     %% there is no root, therefore we create one
     undefined -> 
