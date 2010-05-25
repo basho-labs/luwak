@@ -15,12 +15,12 @@ longest_divisable_subtree([], [], _, _, AccA, AccB) ->
   {{lists:reverse(AccA), []}, {lists:reverse(AccB), []}};
 %% listA was exhausted first, split A
 longest_divisable_subtree([], NodesB, _, LengthB, AccA, AccB) ->
-    error_logger:info_msg("accA ~p accB ~p~n", [AccA, AccB]),
+    % error_logger:info_msg("accA ~p accB ~p~n", [AccA, AccB]),
   {NodesA, FinalAccA} = split_at_length(lists:reverse(AccA), LengthB),
   {{NodesA, FinalAccA}, {lists:reverse(AccB), NodesB}};
 %% listB was exhausted first, put back until equal
 longest_divisable_subtree(NodesA, [], LengthA, _, AccA, AccB) ->
-    error_logger:info_msg("accA ~p accB ~p~n", [AccA, AccB]),
+    % error_logger:info_msg("accA ~p accB ~p~n", [AccA, AccB]),
   {NodesB, FinalAccB} = split_at_length(lists:reverse(AccB), LengthA),
   {{lists:reverse(AccA), NodesA}, {NodesB, FinalAccB}};
 %% equal length subseq
@@ -82,7 +82,7 @@ five_way_split(TreePos, Nodes, InsertPos, Blocks) ->
     midtail=TailBlocks2}}.
     
 blocklist_length(Children) ->
-  error_logger:info_msg("blocklist_length(~p)~n", [Children]),
+  % error_logger:info_msg("blocklist_length(~p)~n", [Children]),
   lists:foldr(fun({_,L},Acc) ->
       L+Acc
     end, 0, Children).
