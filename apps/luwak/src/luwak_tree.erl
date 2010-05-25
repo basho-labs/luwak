@@ -1,6 +1,6 @@
 -module(luwak_tree).
 
--export([update/4, get/2, block_at/3]).
+-export([update/4, get/2, block_at/3, visualize_tree/2]).
 
 -include_lib("luwak/include/luwak.hrl").
 
@@ -35,6 +35,28 @@ update(Riak, File, StartingPos, Blocks) ->
 get(Riak, Name) when is_binary(Name) ->
   {ok, Obj} = Riak:get(?N_BUCKET, Name, 2),
   {ok, riak_object:get_value(Obj)}.
+  
+visualize_tree(Riak, RootName) ->
+  {ok, Node} = get(Riak, RootName),
+    [<<"digraph Luwak_Tree {\n">>,
+    <<"# page = \"8.2677165,11.692913\" ;\n">>,
+    <<"ratio = \"auto\" ;\n">>,
+    <<"mincross = 2.0 ;\n">>,
+    <<"label = \"Luwak Tree\" ;\n">>,
+    visualize_tree(Riak, RootName, Node),
+    <<"}">>].
+  
+visualize_tree(Riak, RootName = <<Prefix:8/binary, _/binary>>, #n{children=Children}) ->
+  io_lib:format("\"~s\" [shape=circle,label=\"~s\",regular=1,style=filled,fillcolor=white ] ;~n", [RootName,Prefix]) ++
+  lists:map(fun({ChildName,_}) ->
+      {ok, Child} = get(Riak, ChildName),
+      visualize_tree(Riak, ChildName, Child)
+    end, Children) ++
+  lists:map(fun({ChildName,Length}) ->
+      io_lib:format("\"~s\" -> \"~s\" [dir=none,weight=1,label=\"~p\"] ;~n", [RootName,ChildName,Length])
+    end, Children);
+visualize_tree(Riak, DataName = <<Prefix:8/binary, _/binary>>, DataNode) ->
+  io_lib:format("\"~s\" [shape=square,label=\"~s\",regular=1,style=filled,fillcolor=gray ] ;~n", [DataName,Prefix]).
 
 create_tree(Riak, Order, Children) when is_list(Children) ->
   error_logger:info_msg("create_tree(Riak, ~p, ~p)~n", [Order, Children]),
