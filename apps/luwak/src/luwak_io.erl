@@ -16,7 +16,7 @@ truncate(Riak, File, Start) ->
 %%==============================================
 
 internal_put_range(Riak, File, Start, Data) ->
-  BlockSize = luwak_obj:get_property(File, block_size),
+  BlockSize = luwak_file:get_property(File, block_size),
   BlockAlignedStart = Start - (Start rem BlockSize),
   case (Start rem BlockSize) of
     0 ->

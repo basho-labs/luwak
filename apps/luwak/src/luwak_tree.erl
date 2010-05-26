@@ -8,18 +8,18 @@
 %% Public API
 %%=======================================
 update(Riak, File, StartingPos, Blocks) ->
-  Order = luwak_obj:get_property(File, tree_order),
-  BlockSize = luwak_obj:get_property(File, block_size),
+  Order = luwak_file:get_property(File, tree_order),
+  BlockSize = luwak_file:get_property(File, block_size),
   if
     StartingPos rem BlockSize =/= 0 -> throw({error, "StartingPos must be a multiple of blocksize"});
     true -> ok
   end,
-  case luwak_obj:get_property(File, root) of
+  case luwak_file:get_property(File, root) of
     %% there is no root, therefore we create one
     undefined -> 
       {ok, RootObj} = create_tree(Riak, Order, Blocks),
       RootName = riak_object:key(RootObj),
-      luwak_obj:update_root(Riak, File, RootName);
+      luwak_file:update_root(Riak, File, RootName);
     RootName ->
       {ok, Root} = get(Riak, RootName),
       error_logger:info_msg("blocks~n"),
@@ -29,7 +29,7 @@ update(Riak, File, StartingPos, Blocks) ->
       {ok, NewRoot} = subtree_update(Riak, File, Order, StartingPos, 0, 
         Root, Blocks),
       NewRootName = riak_object:key(NewRoot),
-      luwak_obj:update_root(Riak, File, NewRootName)
+      luwak_file:update_root(Riak, File, NewRootName)
   end.
 
 get(Riak, Name) when is_binary(Name) ->
@@ -113,12 +113,12 @@ list_into_nodes(Riak, Children, Order, StartingPos) ->
     end, Order, Children).
   
 
-%% @spec block_at(Riak::riak(), File::luwak_obj(), Pos::int()) ->
+%% @spec block_at(Riak::riak(), File::luwak_file(), Pos::int()) ->
 %%          {ok, BlockObj} | {error, Reason}
 block_at(Riak, File, Pos) ->
-  BlockSize = luwak_obj:get_property(File, block_size),
-  Length = luwak_obj:get_property(File, length),
-  case luwak_obj:get_property(File, root) of
+  BlockSize = luwak_file:get_property(File, block_size),
+  Length = luwak_file:get_property(File, length),
+  case luwak_file:get_property(File, root) of
     undefined -> {error, notfound};
     % RootName when Pos > Length -> eof;
     RootName ->
@@ -128,8 +128,8 @@ block_at(Riak, File, Pos) ->
 block_at_retr(Riak, NodeName, NodeOffset, Pos) ->
   case Riak:get(?N_BUCKET, NodeName, 2) of
     {ok, NodeObj} ->
-      Type = luwak_obj:get_property(NodeObj, type),
-      Links = luwak_obj:get_property(NodeObj, links),
+      Type = luwak_file:get_property(NodeObj, type),
+      Links = luwak_file:get_property(NodeObj, links),
       block_at_node(Riak, NodeObj, Type, Links, NodeOffset, Pos);
     Err -> Err
   end.

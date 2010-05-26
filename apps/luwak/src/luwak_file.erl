@@ -1,4 +1,4 @@
--module(luwak_obj).
+-module(luwak_file).
 
 -export([create/3, set_attributes/3, get_attributes/1, exists/2, 
          delete/2, get/2, get_property/2, update_root/3]).

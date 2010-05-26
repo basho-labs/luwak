@@ -7,7 +7,7 @@
              luwak_sup,
              luwak_io,
              luwak_block,
-             luwak_obj,
+             luwak_file,
              luwak_stream,
              luwak_tree,
              luwak_tree_utils
