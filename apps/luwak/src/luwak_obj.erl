@@ -6,7 +6,7 @@
 -include_lib("luwak/include/luwak.hrl").
 
 %% @spec create(Riak :: riak(), Name :: binary(), Attributes :: dict())
-%%        -> {ok, }
+%%        -> {ok, File :: file()} | {error, Reason}
 create(Riak, Name, Attributes) when is_binary(Name) ->
   BlockSize = case dict:find(block_size, Attributes) of
     {ok, V} -> V;

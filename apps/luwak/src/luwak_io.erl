@@ -2,22 +2,19 @@
 
 -export([put_range/4, get_range/4, truncate/3]).
 
-put_range(Riak, Name, Start, Data) ->
-  case luwak_obj:get(Riak, Name) of
-    {ok, File} -> internal_put_range(Riak, File, Start, Data);
-    Err -> Err
-  end.
+put_range(Riak, File, Start, Data) ->
+  internal_put_range(Riak, File, Start, Data).
   
-get_range(Riak, Name, Start, Length) ->
+get_range(Riak, File, Start, Length) ->
   ok.
   
-truncate(Riak, Name, Start) ->
+truncate(Riak, File, Start) ->
   ok.
-
 
 %%==============================================
 %% internal api
 %%==============================================
+
 internal_put_range(Riak, File, Start, Data) ->
   BlockSize = luwak_obj:get_property(File, block_size),
   BlockAlignedStart = Start - (Start rem BlockSize),
