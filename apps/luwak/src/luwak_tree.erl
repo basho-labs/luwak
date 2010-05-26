@@ -60,7 +60,7 @@ visualize_tree(Riak, DataName = <<Prefix:8/binary, _/binary>>, DataNode) ->
   io_lib:format("\"~s\" [shape=record,label=\"~s | ~s\",regular=1,style=filled,fillcolor=gray ] ;~n", [DataName,Prefix,Data]).
 
 create_tree(Riak, Order, Children) when is_list(Children) ->
-  error_logger:info_msg("create_tree(Riak, ~p, ~p)~n", [Order, Children]),
+  % error_logger:info_msg("create_tree(Riak, ~p, ~p)~n", [Order, Children]),
   if
     length(Children) > Order ->
       Written = list_into_nodes(Riak, Children, Order, 0),
@@ -71,11 +71,11 @@ create_tree(Riak, Order, Children) when is_list(Children) ->
 
 %% updating any node happens in up to 5 parts, depending on the coverage of the write list
 subtree_update(Riak, File, Order, InsertPos, TreePos, Parent = #n{}, Blocks) ->
-  error_logger:info_msg("subtree_update(Riak, File, ~p, ~p, ~p, ~p, ~p)~n", [Order, InsertPos, TreePos, Parent, truncate(Blocks)]),
+  % error_logger:info_msg("subtree_update(Riak, File, ~p, ~p, ~p, ~p, ~p)~n", [Order, InsertPos, TreePos, Parent, truncate(Blocks)]),
   {NodeSplit, BlockSplit} = luwak_tree_utils:five_way_split(TreePos, Parent#n.children, InsertPos, Blocks),
-  error_logger:info_msg("NodeSplit ~p BlockSplit ~p~n", [NodeSplit, BlockSplit]),
+  % error_logger:info_msg("NodeSplit ~p BlockSplit ~p~n", [NodeSplit, BlockSplit]),
   MidHeadStart = luwak_tree_utils:blocklist_length(NodeSplit#split.head) + TreePos,
-  error_logger:info_msg("midhead~n"),
+  % error_logger:info_msg("midhead~n"),
   MidHeadReplacement = lists:map(fun({Name,Length}) ->
       {ok, ChildNode} = get(Riak, Name),
       {ok, ReplacementChild} = subtree_update(Riak, File, Order, 
@@ -85,10 +85,10 @@ subtree_update(Riak, File, Order, InsertPos, TreePos, Parent = #n{}, Blocks) ->
       {riak_object:key(ReplacementChild), luwak_tree_utils:blocklist_length(V#n.children)}
     end, NodeSplit#split.midhead),
   MiddleInsertStart = luwak_tree_utils:blocklist_length(BlockSplit#split.midhead) + MidHeadStart,
-  error_logger:info_msg("middle~n"),
+  % error_logger:info_msg("middle~n"),
   MiddleReplacement = list_into_nodes(Riak, BlockSplit#split.middle, Order, MiddleInsertStart),
   MidTailStart = luwak_tree_utils:blocklist_length(BlockSplit#split.middle) + MiddleInsertStart,
-  error_logger:info_msg("midtail~n"),
+  % error_logger:info_msg("midtail~n"),
   MidTailReplacement = lists:map(fun({Name,Length}) ->
       {ok, ChildNode} = get(Riak, Name),
       {ok, ReplacementChild} = subtree_update(Riak, File, Order,
@@ -97,7 +97,7 @@ subtree_update(Riak, File, Order, InsertPos, TreePos, Parent = #n{}, Blocks) ->
       V = riak_object:get_value(ReplacementChild),
       {riak_object:key(ReplacementChild), luwak_tree_utils:blocklist_length(V#n.children)}
     end, NodeSplit#split.midtail),
-  error_logger:info_msg("end~n"),
+  % error_logger:info_msg("end~n"),
   create_tree(Riak, Order, NodeSplit#split.head ++ 
     MidHeadReplacement ++ 
     MiddleReplacement ++ 
@@ -105,7 +105,7 @@ subtree_update(Riak, File, Order, InsertPos, TreePos, Parent = #n{}, Blocks) ->
     NodeSplit#split.tail).
   
 list_into_nodes(Riak, Children, Order, StartingPos) ->
-  error_logger:info_msg("list_into_nodes(Riak, ~p, ~p, ~p)~n", [Children, Order, StartingPos]),
+  % error_logger:info_msg("list_into_nodes(Riak, ~p, ~p, ~p)~n", [Children, Order, StartingPos]),
   map_sublist(fun(Sublist) ->
       Length = luwak_tree_utils:blocklist_length(Sublist),
       {ok, Obj} = create_node(Riak, Sublist),
@@ -165,7 +165,7 @@ map_sublist_1(Fun, N, [E|List], Sublist, Acc) ->
   map_sublist_1(Fun, N, List, [E|Sublist], Acc).
 
 create_node(Riak, Children) ->
-  error_logger:info_msg("create_node(Riak, ~p)~n", [Children]),
+  % error_logger:info_msg("create_node(Riak, ~p)~n", [Children]),
   N = #n{created=now(),children=Children},
   Name = skerl:hexhash(?HASH_LEN, term_to_binary(Children)),
   Obj = riak_object:new(?N_BUCKET, Name, N),

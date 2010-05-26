@@ -58,15 +58,15 @@ split_at_length([{Name,L}|Children], Length, AccLen, Acc) ->
 
 five_way_split(TreePos, Nodes, InsertPos, Blocks) ->
   Offset = InsertPos - TreePos,
-  error_logger:info_msg("offset ~p~n", [Offset]),
+  % error_logger:info_msg("offset ~p~n", [Offset]),
   One = {NoOverlapHeadNode, TailNode1} = split_at_length(Nodes, Offset),
-  error_logger:info_msg("1: ~p~n", [One]),
+  % error_logger:info_msg("1: ~p~n", [One]),
   NegativeOverlap = InsertPos - (TreePos + blocklist_length(NoOverlapHeadNode)),
-  error_logger:info_msg("neg overlap ~p~n", [NegativeOverlap]),
+  % error_logger:info_msg("neg overlap ~p~n", [NegativeOverlap]),
   Two = {{OverlapHeadNode, TailNode2}, {OverlapHeadBlocks, TailBlocks1}} = shortest_subtree_split(TailNode1, Blocks, 0, NegativeOverlap),
-  error_logger:info_msg("2: ~p~n", [Two]),
+  % error_logger:info_msg("2: ~p~n", [Two]),
   Three = {{MiddleNode, TailNode3}, {MiddleBlocks, TailBlocks2}} = longest_divisable_subtree(TailNode2, TailBlocks1),
-  error_logger:info_msg("3: ~p~n", [Three]),
+  % error_logger:info_msg("3: ~p~n", [Three]),
   Four = {OverlapTailNode, NoOverlapTailNode} = case TailNode3 of
     [V|T] when length(TailBlocks2) > 0 -> {[V], T};
     _ -> {[], TailNode3}
