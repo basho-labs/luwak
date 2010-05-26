@@ -6,10 +6,18 @@ put_range(Riak, File, Start, Data) ->
   internal_put_range(Riak, File, Start, Data).
   
 get_range(Riak, File, Start, Length) ->
-  ok.
+  Root = luwak_file:get_property(File, root),
+  BlockSize = luwak_file:get_property(File, block_size),
+  {ok, RootObj} = luwak_tree:get(Riak, Root),
+  Blocks = luwak_tree:get_range(Riak, RootObj, BlockSize, 0, Start, Start+Length),
+  error_logger:info_msg("blocks ~p~n", [Blocks]),
+  ChopHead = Start rem BlockSize,
+  ChopTail = ((Start + Length) rem BlockSize),
+  error_logger:info_msg("chophead ~p choptail ~p~n", [ChopHead, ChopTail]),
+  retrieve_blocks(Riak, Blocks, ChopHead, ChopTail).
   
 truncate(Riak, File, Start) ->
-  ok.
+  luwak_file:update_root(Riak, File, undefined).
 
 %%==============================================
 %% internal api
@@ -81,3 +89,20 @@ write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written) whe
   BlockData = <<Head/binary, ChopData/binary>>,
   {ok, Block} = luwak_block:create(Riak, BlockData),
   write_blocks(Riak, File, undefined, Start+byte_size(BlockData), Tail, BlockSize, [{luwak_block:name(Block),byte_size(BlockData)}|Written]).
+
+retrieve_blocks(Riak, Blocks, ChopHead, ChopTail) ->
+  retrieve_blocks(Riak, Blocks, ChopHead, ChopTail, []).
+  
+retrieve_blocks(Riak, [], _, _, Acc) ->
+  lists:reverse(Acc);
+retrieve_blocks(Riak, [{Name,_}], _, 0, Acc) ->
+  {ok, Block} = luwak_tree:get(Riak, Name),
+  retrieve_blocks(Riak, [], 0, 0, [luwak_block:data(Block)|Acc]);
+retrieve_blocks(Riak, [{Name,_}], _, ChopTail, Acc) ->
+  {ok, Block} = luwak_tree:get(Riak, Name),
+  <<Data:ChopTail/binary, _/binary>> = luwak_block:data(Block),
+  retrieve_blocks(Riak, [], 0, 0, [Data|Acc]);
+retrieve_blocks(Riak, [{Name,_}|Children], ChopHead, ChopTail, Acc) ->
+  {ok, Block} = luwak_tree:get(Riak, Name),
+  <<_:ChopHead/binary, Data/binary>> = luwak_block:data(Block),
+  retrieve_blocks(Riak, Children, 0, ChopTail, [Data|Acc]).

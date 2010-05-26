@@ -2,7 +2,9 @@
 
 -include_lib("luwak/include/luwak.hrl").
 
--export([longest_divisable_subtree/2, longest_divisable_subtree/4, shortest_subtree_split/4, split_at_length/2, five_way_split/4, blocklist_length/1]).
+-export([longest_divisable_subtree/2, longest_divisable_subtree/4, 
+  shortest_subtree_split/4, split_at_length/2, five_way_split/4, 
+  blocklist_length/1, foldrflatmap/3, split_at_length_left_bias/2]).
 
 longest_divisable_subtree(NodesA, NodesB) ->
   longest_divisable_subtree(NodesA, NodesB, 0, 0).
@@ -43,6 +45,15 @@ shortest_subtree_split([E={NA,LA}|NodesA], NodesB, StartA, StartB, AccA, AccB) w
 shortest_subtree_split(NodesA, [E={NB,LB}|NodesB], StartA, StartB, AccA, AccB) when StartA > StartB ->
   shortest_subtree_split(NodesA, NodesB, StartA, LB+StartB, AccA, [E|AccB]).
 
+split_at_length_left_bias(Children, Length) ->
+  split_at_length_left_bias(Children, Length, []).
+
+split_at_length_left_bias([], _, Acc) ->
+  {lists:reverse(Acc),[]};
+split_at_length_left_bias(Children, Length, Acc) when Length =< 0 ->
+  {lists:reverse(Acc), Children};
+split_at_length_left_bias([E={Name,L}|Tail], Length, Acc) ->
+  split_at_length_left_bias(Tail, Length-L, [E|Acc]).
 
 split_at_length(Children, Length) ->
   split_at_length(Children, Length, 0, []).
@@ -88,3 +99,8 @@ blocklist_length(Children) ->
   lists:foldr(fun({_,L},Acc) ->
       L+Acc
     end, 0, Children).
+
+foldrflatmap(_, [], _) -> [];
+foldrflatmap(Fun, [Hd|Tail], Acc) ->
+  {Result,Acc1} = Fun(Hd,Acc),
+  Result ++ foldrflatmap(Fun, Tail, Acc1).

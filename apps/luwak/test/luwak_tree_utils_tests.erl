@@ -41,6 +41,12 @@ split_at_length_test() ->
     [{a,100},{b,50}], 
     [{c,200}]},
     luwak_tree_utils:split_at_length(A, 200)).
+    
+split_at_length_left_bias_test() ->
+  A = [{a,100},{b,50},{c,200}],
+  ?assertEqual(
+    {A,[]},
+    luwak_tree_utils:split_at_length_left_bias(A, 200)).
 
 simple_five_way_split_test() ->
   Nodes = [{a,100},{b,100},{c,100},{d,100},{e,100}],

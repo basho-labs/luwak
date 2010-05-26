@@ -1,6 +1,6 @@
 -module(luwak_tree).
 
--export([update/4, get/2, block_at/3, visualize_tree/2]).
+-export([update/4, get/2, block_at/3, visualize_tree/2, get_range/6]).
 
 -include_lib("luwak/include/luwak.hrl").
 
@@ -31,6 +31,41 @@ update(Riak, File, StartingPos, Blocks) ->
       NewRootName = riak_object:key(NewRoot),
       luwak_file:update_root(Riak, File, NewRootName)
   end.
+
+get_range(_, _, _, _, _, 0) ->
+  [];
+% get_range(_, _, _, TreeStart, Start, _) when Start < TreeStart ->
+%   error_logger:info_msg("C get_range(_, _, _, ~p, ~p, _)~n", [TreeStart, Start]),
+%   %% what are you even doing here
+%   [];
+get_range(Riak, Parent = #n{children=[]}, BlockSize, TreeStart, Start, End) ->
+  error_logger:info_msg("D get_range(_, _, _, _, _, _)~n"),
+  [];
+%% children are individual blocks
+%% we can do this because trees are guaranteed to be full
+get_range(Riak, Parent = #n{children=[{_,BlockSize}|_]=Children}, BlockSize, TreeStart, Start, End) ->
+  error_logger:info_msg("A get_range(Riak, ~p, ~p, ~p, ~p, ~p)~n", [Parent, BlockSize, TreeStart, Start, End]),
+  read_split(Children, TreeStart, Start, End);
+get_range(Riak, Parent = #n{children=Children}, BlockSize, TreeStart, Start, End) ->
+  error_logger:info_msg("B get_range(Riak, ~p, ~p, ~p, ~p, ~p)~n", [Parent, BlockSize, TreeStart, Start, End]),
+  Nodes = read_split(Children, TreeStart, Start, End),
+  luwak_tree_utils:foldrflatmap(fun({Name,NodeLength}, AccLength) ->
+      error_logger:info_msg("foldrflatmap({~p,~p}, ~p)~n", [Name, NodeLength, AccLength]),
+      {ok, Node} = get(Riak, Name),
+      Blocks = get_range(Riak, Node, BlockSize, AccLength, Start, End),
+      {Blocks, AccLength+NodeLength}
+    end, Nodes, TreeStart).
+  
+read_split(Children, TreeStart, Start, End) when Start < 0 ->
+  read_split(Children, TreeStart, 0, End);
+read_split(Children, TreeStart, Start, End) ->
+  error_logger:info_msg("read_split(~p, ~p, ~p, ~p)~n", [Children, TreeStart, Start, End]),
+  InsidePos = Start - TreeStart,
+  InsideEnd = End - TreeStart,
+  {Head,Tail} = luwak_tree_utils:split_at_length(Children, InsidePos),
+  {Middle,_} = luwak_tree_utils:split_at_length_left_bias(Tail, InsideEnd),
+  error_logger:info_msg("middle ~p~n", [Middle]),
+  Middle.
 
 get(Riak, Name) when is_binary(Name) ->
   {ok, Obj} = Riak:get(?N_BUCKET, Name, 2),

@@ -17,3 +17,21 @@ simple_put_range_test() ->
       ?assertEqual(<<"uch">>, luwak_block:data(Block3)),
       ?assertEqual([{Hash1,5},{Hash2,5},{Hash3,3}], Written)
     end).
+
+simple_get_range_test() ->
+  test_helper:riak_test(fun(Riak) ->
+      {ok, File} = luwak_file:create(Riak, <<"file1">>, dict:store(block_size, 2, dict:store(tree_order, 3, dict:new()))),
+      {ok, Written, File1} = luwak_io:put_range(Riak, File, 0, <<"fuckyourcouch">>),
+      Blocks = luwak_io:get_range(Riak, File1, 3, 5),
+      ok = file:write_file("/Users/cliff/tree4.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File1, root))),
+      ?assertEqual(<<"kyour">>, iolist_to_binary(Blocks))
+    end).
+
+multilevel_get_range_test() ->
+  test_helper:riak_test(fun(Riak) ->
+      {ok, File} = luwak_file:create(Riak, <<"file1">>, dict:store(block_size, 3, dict:store(tree_order, 3, dict:new()))),
+      {ok, Written, File1} = luwak_io:put_range(Riak, File, 0, <<"wontyoupleasetouchmymonkey">>),
+      Blocks = luwak_io:get_range(Riak, File1, 4, 9),
+      ok = file:write_file("/Users/cliff/tree5.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File1, root))),
+      ?assertEqual(<<"youplease">>, iolist_to_binary(Blocks))
+    end).
