@@ -13,11 +13,10 @@ longest_divisable_subtree(NodesA, NodesB, StartA, StartB) ->
 %% both lists were equal
 longest_divisable_subtree([], [], _, _, AccA, AccB) ->
   {{lists:reverse(AccA), []}, {lists:reverse(AccB), []}};
-%% listA was exhausted first, split A
+%% listA was exhausted first, we favor listB as a special case here
 longest_divisable_subtree([], NodesB, _, LengthB, AccA, AccB) ->
     % error_logger:info_msg("accA ~p accB ~p~n", [AccA, AccB]),
-  {NodesA, FinalAccA} = split_at_length(lists:reverse(AccA), LengthB),
-  {{NodesA, FinalAccA}, {lists:reverse(AccB), NodesB}};
+  {{lists:reverse(AccA), []}, {lists:reverse(AccB) ++ NodesB, []}};
 %% listB was exhausted first, put back until equal
 longest_divisable_subtree(NodesA, [], LengthA, _, AccA, AccB) ->
     % error_logger:info_msg("accA ~p accB ~p~n", [AccA, AccB]),
@@ -48,6 +47,7 @@ shortest_subtree_split(NodesA, [E={NB,LB}|NodesB], StartA, StartB, AccA, AccB) w
 split_at_length(Children, Length) ->
   split_at_length(Children, Length, 0, []).
 
+split_at_length(Children, 0, _, _) -> {[], Children};
 split_at_length([], _Length, _AccLen, Acc) -> {lists:reverse(Acc), []};
 split_at_length(Tail, Length, AccLen, Acc) when AccLen == Length ->
   {lists:reverse(Acc), Tail};
@@ -57,19 +57,21 @@ split_at_length([{Name,L}|Children], Length, AccLen, Acc) ->
   split_at_length(Children, Length, AccLen+L, [{Name,L}|Acc]).
 
 five_way_split(TreePos, Nodes, InsertPos, Blocks) ->
-  One = {NoOverlapHeadNode, TailNode1} = luwak_tree_utils:split_at_length(Nodes, InsertPos),
-  % io:format("1: ~p~n", [One]),
+  Offset = InsertPos - TreePos,
+  error_logger:info_msg("offset ~p~n", [Offset]),
+  One = {NoOverlapHeadNode, TailNode1} = split_at_length(Nodes, Offset),
+  error_logger:info_msg("1: ~p~n", [One]),
   NegativeOverlap = InsertPos - (TreePos + blocklist_length(NoOverlapHeadNode)),
-  % io:format("neg overlap ~p~n", [NegativeOverlap]),
+  error_logger:info_msg("neg overlap ~p~n", [NegativeOverlap]),
   Two = {{OverlapHeadNode, TailNode2}, {OverlapHeadBlocks, TailBlocks1}} = shortest_subtree_split(TailNode1, Blocks, 0, NegativeOverlap),
-  % io:format("2: ~p~n", [Two]),
+  error_logger:info_msg("2: ~p~n", [Two]),
   Three = {{MiddleNode, TailNode3}, {MiddleBlocks, TailBlocks2}} = longest_divisable_subtree(TailNode2, TailBlocks1),
-  % io:format("3: ~p~n", [Three]),
+  error_logger:info_msg("3: ~p~n", [Three]),
   Four = {OverlapTailNode, NoOverlapTailNode} = case TailNode3 of
     [V|T] when length(TailBlocks2) > 0 -> {[V], T};
     _ -> {[], TailNode3}
   end,
-  % io:format("4: ~p~n", [Four]),
+  % error_logger:info_msg("4: ~p~n", [Four]),
   {#split{
     head=NoOverlapHeadNode,
     midhead=OverlapHeadNode,

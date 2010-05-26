@@ -71,18 +71,14 @@ create_and_overwrite_multilevel_tree_test() ->
         dict:store(tree_order, 5,
           dict:store(block_size, 1, dict:new()))),
       {ok, Written1, File2} = luwak_io:put_range(Riak, <<"file1">>, 0, <<"fuckyourcouch">>),
-      ok = file:write_file("/Users/cliff/tree1.dot", luwak_tree:visualize_tree(Riak, luwak_obj:get_property(File2, root))),
+      % ok = file:write_file("/Users/cliff/tree1.dot", luwak_tree:visualize_tree(Riak, luwak_obj:get_property(File2, root))),
       {ok, Written2, File3} = luwak_io:put_range(Riak, <<"file1">>, 1, <<"ballstoyou">>),
       Blocks = [ {skerl:hexhash(512, list_to_binary([C])), 1} || C <- binary_to_list(<<"fballstoyouch">>) ],
-      error_logger:info_msg("blocks ~p~n", [Blocks]),
       {FirstNodeChildren, Tail1} = lists:split(5, Blocks),
       {SecondNodeChildren, ThirdNodeChildren} = lists:split(5, Tail1),
       Node1 = skerl:hexhash(512, term_to_binary(FirstNodeChildren)),
-      error_logger:info_msg("node1 ~p~n", [Node1]),
       Node2 = skerl:hexhash(512, term_to_binary(SecondNodeChildren)),
-      error_logger:info_msg("node2 ~p~n", [Node2]),
       Node3 = skerl:hexhash(512, term_to_binary(ThirdNodeChildren)),
-      error_logger:info_msg("node3 ~p~n", [Node3]),
       RootChildren = [{Node1,5}, {Node2,5}, {Node3,3}],
       Root1 = skerl:hexhash(512, term_to_binary(RootChildren)),
       ok = file:write_file("/Users/cliff/tree2.dot", luwak_tree:visualize_tree(Riak, luwak_obj:get_property(File3, root))),
@@ -90,14 +86,21 @@ create_and_overwrite_multilevel_tree_test() ->
       ?assertEqual(Root1, luwak_obj:get_property(File3, root)),
             {ok, RootNode} = luwak_tree:get(Riak, Root1),
       ?assertEqual(RootChildren, RootNode#n.children),
-
       {ok, Node1Node} = luwak_tree:get(Riak, Node1),
       {ok, Node2Node} = luwak_tree:get(Riak, Node2),
       {ok, Node3Node} = luwak_tree:get(Riak, Node3),
-
       ?assertEqual(FirstNodeChildren, Node1Node#n.children),
       ?assertEqual(SecondNodeChildren, Node2Node#n.children),
       ?assertEqual(ThirdNodeChildren, Node3Node#n.children)
-
-
+    end).
+    
+create_and_append_test() ->
+  test_helper:riak_test(fun(Riak) ->
+      {ok, File} = luwak_obj:create(Riak, <<"file1">>,
+        dict:store(tree_order, 3,
+          dict:store(block_size, 2, dict:new()))),
+      {ok, Written1, File2} = luwak_io:put_range(Riak, <<"file1">>, 0, <<"wontyouplease">>),
+      {ok, Written2, File3} = luwak_io:put_range(Riak, <<"file1">>, 13, <<"touchmymonkey">>),
+      Blocks = [ {skerl:hexhash(512, X), 2} || <<X:2/binary>> <= <<"wontyoupleasetouchmymonkey">> ],
+      ok = file:write_file("/Users/cliff/tree3.dot", luwak_tree:visualize_tree(Riak, luwak_obj:get_property(File3, root)))
     end).
