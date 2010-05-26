@@ -65,11 +65,22 @@ write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written) whe
   {ok, Block} = luwak_block:create(Riak, BlockData),
   {ok, lists:reverse([{luwak_block:name(Block),byte_size(BlockData)}|Written])};
 %% we are starting with a sub-block write
-write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written) when is_list(Written) ->
+write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written) when Start > BlockSize ->
   error_logger:info_msg("E write_blocks(Riak, File, ~p, ~p, ~p, ~p, ~p) ~n", [PartialStartBlock, Start, Data, BlockSize, Written]),
+  HeadSize = Start rem BlockSize,
+  MidSize = BlockSize - HeadSize,
+  error_logger:info_msg("headsize ~p midsize ~p~n", [HeadSize, MidSize]),
+  <<Head:HeadSize/binary,_/binary>> = luwak_block:data(PartialStartBlock),
+  <<Mid:MidSize/binary, Tail/binary>> = Data,
+  BlockData = <<Head/binary, Mid/binary>>,
+  {ok, Block} = luwak_block:create(Riak, BlockData),
+  write_blocks(Riak, File, undefined, Start+byte_size(BlockData), Tail, BlockSize, [{luwak_block:name(Block),byte_size(BlockData)}|Written]);
+write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written) when is_list(Written) ->
+  error_logger:info_msg("F write_blocks(Riak, File, ~p, ~p, ~p, ~p, ~p) ~n", [PartialStartBlock, Start, Data, BlockSize, Written]),
   ChopDataSize = BlockSize - Start,
+  error_logger:info_msg("chopdatasize ~p~n", [ChopDataSize]),
   <<ChopData:ChopDataSize/binary, Tail/binary>> = Data,
   <<Head:Start/binary, _/binary>> = luwak_block:data(PartialStartBlock),
   BlockData = <<Head/binary, ChopData/binary>>,
   {ok, Block} = luwak_block:create(Riak, BlockData),
-  write_blocks(Riak, File, undefined, Start+byte_size(Data), Tail, BlockSize, [{luwak_block:name(Block),byte_size(BlockData)}|Written]).
+  write_blocks(Riak, File, undefined, Start+byte_size(BlockData), Tail, BlockSize, [{luwak_block:name(Block),byte_size(BlockData)}|Written]).
