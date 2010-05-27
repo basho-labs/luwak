@@ -1,7 +1,7 @@
 -module(luwak_file).
 
 -export([create/3, set_attributes/3, get_attributes/1, exists/2, 
-         delete/2, get/2, get_property/2, update_root/3]).
+         delete/2, get/2, get_property/2, update_root/3, name/1]).
 
 -include_lib("luwak/include/luwak.hrl").
 
@@ -75,3 +75,6 @@ update_root(Riak, Obj, NewRoot) ->
   ObjVal3 = lists:keyreplace(root, 1, ObjVal2, {root, NewRoot}),
   Obj2 = riak_object:apply_updates(riak_object:update_value(Obj, ObjVal3)),
   {Riak:put(Obj2, 2), Obj2}.
+
+name(Obj) ->
+  riak_object:key(Obj).
