@@ -1,21 +1,20 @@
 -module(luwak_file).
 
--export([create/3, set_attributes/3, get_attributes/1, exists/2, 
+-export([create/3, create/4, set_attributes/3, get_attributes/1, exists/2, 
          delete/2, get/2, get_property/2, update_root/3, name/1]).
 
 -include_lib("luwak/include/luwak.hrl").
 
 %% @spec create(Riak :: riak(), Name :: binary(), Attributes :: dict())
-%%        -> {ok, File :: file()} | {error, Reason}
+%%        -> {ok, File :: luwak_file()} | {error, Reason}
 create(Riak, Name, Attributes) when is_binary(Name) ->
-  BlockSize = case dict:find(block_size, Attributes) of
-    {ok, V} -> V;
-    error -> ?BLOCK_DEFAULT
-  end,
-  Order = case dict:find(tree_order, Attributes) of
-    {ok, O} -> O;
-    error -> ?ORDER_DEFAULT
-  end,
+  create(Riak, Name, [], Attributes).
+
+%% @spec create(Riak :: riak(), Name :: binary(), Properties :: proplist(), Attributes :: dict())
+%%        -> {ok, File :: luwak_file()} | {error, Reason}
+create(Riak, Name, Properties, Attributes) when is_binary(Name) ->
+  BlockSize = proplists:get_value(block_size, Properties, ?BLOCK_DEFAULT),
+  Order = proplists:get_value(tree_order, Properties, ?ORDER_DEFAULT),
   Value = [
     {attributes, Attributes},
     {block_size, BlockSize},

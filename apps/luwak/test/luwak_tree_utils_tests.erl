@@ -97,8 +97,6 @@ appending_five_way_split_test() ->
   Nodes = [{a,6},{b,6},{c,1}],
   Blocks = [{d,2},{e,2},{f,2},{g,2},{h,2},{i,2},{j,2}],
   A = {NodeSplit,BlockSplit} = luwak_tree_utils:five_way_split(0, Nodes, 12, Blocks),
-  io:format("~p~n", [A]),
-  timer:sleep(100),
   ?assertEqual(#split{
     head=[{a,6},{b,6}],
     middle=[{c,1}]}, NodeSplit).

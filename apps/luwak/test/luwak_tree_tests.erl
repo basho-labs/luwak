@@ -5,9 +5,7 @@
 
 create_simple_tree_test() ->
   test_helper:riak_test(fun(Riak) ->
-      {ok, File} = luwak_file:create(Riak, <<"file1">>, 
-        dict:store(tree_order, 4, 
-          dict:store(block_size, 5, dict:new()))),
+      {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,4},{block_size,5}], dict:new()),
       {ok, Written, File2} = luwak_io:put_range(Riak, File, 0, <<"fuckyourcouch">>),
       BHash1 = <<"4622b193a65e6f2a7873b6bef7e3b0cf18867f687e48f40fd9eabf840d5f0ebbd65bfff586e5c38ba50e473516e8f270b6687a1f271586baf648a38aa489dd91">>,
       BHash2 = <<"08d5f211d13a9fb1e9b6902771b80459fedbb9e138b96d7a6dc3b92ad87997d24b65cc1a8594cc14b226cd511acf03eb3f4b24c7b67d270665d5bf5cb43f8fa6">>,
@@ -22,9 +20,7 @@ create_simple_tree_test() ->
     
 create_and_overwrite_middle_tree_test() ->
   test_helper:riak_test(fun(Riak) ->
-      {ok, File} = luwak_file:create(Riak, <<"file1">>,
-        dict:store(tree_order, 4,
-          dict:store(block_size, 5, dict:new()))),
+      {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,4},{block_size,5}], dict:new()),
       {ok, Written1, File2} = luwak_io:put_range(Riak, File, 0, <<"fuckyourcouch">>),
       BHash1 = <<"4622b193a65e6f2a7873b6bef7e3b0cf18867f687e48f40fd9eabf840d5f0ebbd65bfff586e5c38ba50e473516e8f270b6687a1f271586baf648a38aa489dd91">>,
       BHash2 = <<"08d5f211d13a9fb1e9b6902771b80459fedbb9e138b96d7a6dc3b92ad87997d24b65cc1a8594cc14b226cd511acf03eb3f4b24c7b67d270665d5bf5cb43f8fa6">>,
@@ -42,9 +38,7 @@ create_and_overwrite_middle_tree_test() ->
 
 create_multilevel_tree_test() ->
   test_helper:riak_test(fun(Riak) ->
-      {ok, File} = luwak_file:create(Riak, <<"file1">>,
-        dict:store(tree_order, 5,
-          dict:store(block_size, 1, dict:new()))),
+      {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,5},{block_size,1}], dict:new()),
       {ok, Written1, File2} = luwak_io:put_range(Riak, File, 0, <<"fuckyourcouch">>),
       Blocks = [ {skerl:hexhash(512, list_to_binary([C])), 1} || C <- binary_to_list(<<"fuckyourcouch">>) ],
       {FirstNodeChildren, Tail1} = lists:split(5, Blocks),
@@ -67,9 +61,7 @@ create_multilevel_tree_test() ->
     
 create_and_overwrite_multilevel_tree_test() ->
   test_helper:riak_test(fun(Riak) ->
-      {ok, File} = luwak_file:create(Riak, <<"file1">>,
-        dict:store(tree_order, 5,
-          dict:store(block_size, 1, dict:new()))),
+      {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,5},{block_size,1}], dict:new()),
       {ok, Written1, File2} = luwak_io:put_range(Riak, File, 0, <<"fuckyourcouch">>),
       % ok = file:write_file("/Users/cliff/tree1.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File2, root))),
       {ok, Written2, File3} = luwak_io:put_range(Riak, File2, 1, <<"ballstoyou">>),
@@ -82,7 +74,6 @@ create_and_overwrite_multilevel_tree_test() ->
       RootChildren = [{Node1,5}, {Node2,5}, {Node3,3}],
       Root1 = skerl:hexhash(512, term_to_binary(RootChildren)),
       ok = file:write_file("/Users/cliff/tree2.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File3, root))),
-      timer:sleep(1000),
       ?assertEqual(Root1, luwak_file:get_property(File3, root)),
             {ok, RootNode} = luwak_tree:get(Riak, Root1),
       ?assertEqual(RootChildren, RootNode#n.children),
@@ -96,9 +87,7 @@ create_and_overwrite_multilevel_tree_test() ->
     
 create_and_append_test() ->
   test_helper:riak_test(fun(Riak) ->
-      {ok, File} = luwak_file:create(Riak, <<"file1">>,
-        dict:store(tree_order, 3,
-          dict:store(block_size, 2, dict:new()))),
+      {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,3},{block_size,2}], dict:new()),
       {ok, Written1, File2} = luwak_io:put_range(Riak, File, 0, <<"wontyouplease">>),
       {ok, Written2, File3} = luwak_io:put_range(Riak, File2, 13, <<"touchmymonkey">>),
       Blocks = [ {skerl:hexhash(512, X), 2} || <<X:2/binary>> <= <<"wontyoupleasetouchmymonkey">> ],

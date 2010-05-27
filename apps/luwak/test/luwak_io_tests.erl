@@ -4,7 +4,7 @@
 
 simple_put_range_test() ->
   test_helper:riak_test(fun(Riak) ->
-      {ok, File} = luwak_file:create(Riak, <<"file1">>, dict:store(block_size, 5, dict:new())),
+      {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,5}], dict:new()),
       {ok, Written, _} = luwak_io:put_range(Riak, File, 0, <<"fuckyourcouch">>),
       Hash1 = <<"4622b193a65e6f2a7873b6bef7e3b0cf18867f687e48f40fd9eabf840d5f0ebbd65bfff586e5c38ba50e473516e8f270b6687a1f271586baf648a38aa489dd91">>,
       Hash2 = <<"08d5f211d13a9fb1e9b6902771b80459fedbb9e138b96d7a6dc3b92ad87997d24b65cc1a8594cc14b226cd511acf03eb3f4b24c7b67d270665d5bf5cb43f8fa6">>,
@@ -20,7 +20,7 @@ simple_put_range_test() ->
 
 simple_get_range_test() ->
   test_helper:riak_test(fun(Riak) ->
-      {ok, File} = luwak_file:create(Riak, <<"file1">>, dict:store(block_size, 2, dict:store(tree_order, 3, dict:new()))),
+      {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,2},{tree_order,3}], dict:new()),
       {ok, Written, File1} = luwak_io:put_range(Riak, File, 0, <<"fuckyourcouch">>),
       Blocks = luwak_io:get_range(Riak, File1, 3, 5),
       ok = file:write_file("/Users/cliff/tree4.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File1, root))),
@@ -29,7 +29,7 @@ simple_get_range_test() ->
 
 multilevel_get_range_test() ->
   test_helper:riak_test(fun(Riak) ->
-      {ok, File} = luwak_file:create(Riak, <<"file1">>, dict:store(block_size, 3, dict:store(tree_order, 3, dict:new()))),
+      {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,3},{tree_order,3}], dict:new()),
       {ok, Written, File1} = luwak_io:put_range(Riak, File, 0, <<"wontyoupleasetouchmymonkey">>),
       Blocks = luwak_io:get_range(Riak, File1, 4, 9),
       ok = file:write_file("/Users/cliff/tree5.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File1, root))),
@@ -38,7 +38,7 @@ multilevel_get_range_test() ->
 
 eof_get_range_test() ->
   test_helper:riak_test(fun(Riak) ->
-      {ok, File} = luwak_file:create(Riak, <<"file1">>, dict:store(block_size, 3, dict:store(tree_order, 3, dict:new()))),
+      {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,3},{tree_order,3}], dict:new()),
       {ok, Written, File1} = luwak_io:put_range(Riak, File, 0, <<"wontyoupleasetouchmymonkey">>),
       ok = file:write_file("/Users/cliff/tree6.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File1, root))),
       Blocks = luwak_io:get_range(Riak, File1, 20, 20),
@@ -47,7 +47,7 @@ eof_get_range_test() ->
 
 truncate_test() ->
   test_helper:riak_test(fun(Riak) ->
-      {ok, File} = luwak_file:create(Riak, <<"file1">>, dict:store(block_size, 3, dict:store(tree_order, 3, dict:new()))),
+      {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,3},{tree_order,3}], dict:new()),
       {ok, Written, File1} = luwak_io:put_range(Riak, File, 0, <<"wontyoupleasetouchmymonkey">>),
       {ok, File2} = luwak_io:truncate(Riak, File1, 7),
       ok = file:write_file("/Users/cliff/tree7.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File2, root))),
