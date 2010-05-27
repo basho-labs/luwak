@@ -12,12 +12,18 @@ get_range(Riak, File, Start, Length) ->
   Blocks = luwak_tree:get_range(Riak, RootObj, BlockSize, 0, Start, Start+Length),
   error_logger:info_msg("blocks ~p~n", [Blocks]),
   ChopHead = Start rem BlockSize,
-  ChopTail = ((Start + Length) rem BlockSize),
-  error_logger:info_msg("chophead ~p choptail ~p~n", [ChopHead, ChopTail]),
-  retrieve_blocks(Riak, Blocks, ChopHead, ChopTail).
+  error_logger:info_msg("chophead ~p choptail ~p~n", [ChopHead, Length]),
+  retrieve_blocks(Riak, Blocks, ChopHead, Length).
   
+truncate(Riak, File, 0) ->
+  luwak_file:update_root(Riak, File, undefined);
 truncate(Riak, File, Start) ->
-  luwak_file:update_root(Riak, File, undefined).
+  RootName = luwak_file:get_property(File, root),
+  BlockSize = luwak_file:get_property(File, block_size),
+  Order = luwak_file:get_property(File, tree_order),
+  {ok, Root} = luwak_tree:get(Riak, RootName),
+  {ok, {NewRootName,_}} = luwak_tree:truncate(Riak, File, Start, Root, Order, 0, BlockSize),
+  luwak_file:update_root(Riak, File, NewRootName).
 
 %%==============================================
 %% internal api
@@ -46,14 +52,17 @@ write_blocks(Riak, File, undefined, Start, Data, BlockSize, Written) when is_lis
   % error_logger:info_msg("B write_blocks(Riak, File, ~p, ~p, ~p, ~p, ~p) ~n", [undefined, Start, Data, BlockSize, Written]),
   DataSize = byte_size(Data),
   case luwak_tree:block_at(Riak, File, Start) of
+    {ok, undefined} ->
+      {ok, NewBlock} = luwak_block:create(Riak, Data),
+      {ok, lists:reverse([{luwak_block:name(NewBlock),byte_size(Data)}|Written])};
+    {error, notfound} ->
+      {ok, NewBlock} = luwak_block:create(Riak, Data),
+      {ok, lists:reverse([{luwak_block:name(NewBlock),byte_size(Data)}|Written])};
     {ok, Block} ->
       <<_:DataSize/binary, Tail/binary>> = luwak_block:data(Block),
       BlockData = <<Data/binary, Tail/binary>>,
       {ok, NewBlock} = luwak_block:create(Riak, BlockData),
-      {ok, lists:reverse([{luwak_block:name(NewBlock),byte_size(BlockData)}|Written])};
-    {error, notfound} ->
-      {ok, NewBlock} = luwak_block:create(Riak, Data),
-      {ok, lists:reverse([{luwak_block:name(NewBlock),byte_size(Data)}|Written])}
+      {ok, lists:reverse([{luwak_block:name(NewBlock),byte_size(BlockData)}|Written])}
   end;
 %% fully aligned write
 write_blocks(Riak, File, undefined, Start, Data, BlockSize, Written) when is_list(Written) ->
@@ -90,19 +99,25 @@ write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written) whe
   {ok, Block} = luwak_block:create(Riak, BlockData),
   write_blocks(Riak, File, undefined, Start+byte_size(BlockData), Tail, BlockSize, [{luwak_block:name(Block),byte_size(BlockData)}|Written]).
 
-retrieve_blocks(Riak, Blocks, ChopHead, ChopTail) ->
-  retrieve_blocks(Riak, Blocks, ChopHead, ChopTail, []).
+retrieve_blocks(Riak, Blocks, ChopHead, Length) ->
+  retrieve_blocks(Riak, Blocks, ChopHead, Length, []).
   
 retrieve_blocks(Riak, [], _, _, Acc) ->
   lists:reverse(Acc);
 retrieve_blocks(Riak, [{Name,_}], _, 0, Acc) ->
   {ok, Block} = luwak_tree:get(Riak, Name),
   retrieve_blocks(Riak, [], 0, 0, [luwak_block:data(Block)|Acc]);
-retrieve_blocks(Riak, [{Name,_}], _, ChopTail, Acc) ->
+retrieve_blocks(Riak, [{Name,_}], _, Length, Acc) ->
   {ok, Block} = luwak_tree:get(Riak, Name),
-  <<Data:ChopTail/binary, _/binary>> = luwak_block:data(Block),
-  retrieve_blocks(Riak, [], 0, 0, [Data|Acc]);
-retrieve_blocks(Riak, [{Name,_}|Children], ChopHead, ChopTail, Acc) ->
+  PreData = luwak_block:data(Block),
+  case byte_size(PreData) of
+    DataSize when Length < DataSize ->
+      <<Data:Length/binary, _/binary>> = PreData,
+      retrieve_blocks(Riak, [], 0, 0, [Data|Acc]);
+    _ ->
+      retrieve_blocks(Riak, [], 0, 0, [PreData|Acc])
+  end;
+retrieve_blocks(Riak, [{Name,_}|Children], ChopHead, Length, Acc) ->
   {ok, Block} = luwak_tree:get(Riak, Name),
   <<_:ChopHead/binary, Data/binary>> = luwak_block:data(Block),
-  retrieve_blocks(Riak, Children, 0, ChopTail, [Data|Acc]).
+  retrieve_blocks(Riak, Children, 0, Length - byte_size(Data), [Data|Acc]).
