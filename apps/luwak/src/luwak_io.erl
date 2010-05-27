@@ -1,6 +1,6 @@
 -module(luwak_io).
 
--export([put_range/4, get_range/4, truncate/3]).
+-export([put_range/4, get_range/4, truncate/3, no_tree_put_range/4]).
 
 put_range(Riak, File, Start, Data) ->
   internal_put_range(Riak, File, Start, Data).
@@ -28,6 +28,17 @@ truncate(Riak, File, Start) ->
 %%==============================================
 %% internal api
 %%==============================================
+no_tree_put_range(Riak, File, Start, Data) ->
+  error_logger:info_msg("no_tree_put_range(Riak, File, ~p, ~p)~n", [Start, Data]),
+  BlockSize = luwak_file:get_property(File, block_size),
+  BlockAlignedStart = Start - (Start rem BlockSize),
+  case (Start rem BlockSize) of
+    0 -> write_blocks(Riak, File, undefined, Start, Data, BlockSize, []);
+    BlockOffset ->
+      error_logger:info_msg("blockoffset ~p~n", [BlockOffset]),
+      {ok, Block} = luwak_tree:block_at(Riak, File, Start),
+      write_blocks(Riak, File, Block, Start, Data, BlockSize, [])
+  end.
 
 internal_put_range(Riak, File, Start, Data) ->
   BlockSize = luwak_file:get_property(File, block_size),
@@ -74,7 +85,8 @@ write_blocks(Riak, File, undefined, Start, Data, BlockSize, Written) when is_lis
 write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written) when is_list(Written), byte_size(Data) < BlockSize ->
   % error_logger:info_msg("D write_blocks(Riak, File, ~p, ~p, ~p, ~p, ~p) ~n", [PartialStartBlock, Start, Data, BlockSize, Written]),
   DataSize = byte_size(Data),
-  <<Head:Start/binary, _:DataSize/binary, Tail/binary>> = luwak_block:data(PartialStartBlock),
+  PartialStart = Start rem BlockSize,
+  <<Head:PartialStart/binary, _:DataSize/binary, Tail/binary>> = luwak_block:data(PartialStartBlock),
   BlockData = <<Head/binary, Data/binary, Tail/binary>>,
   {ok, Block} = luwak_block:create(Riak, BlockData),
   {ok, lists:reverse([{luwak_block:name(Block),byte_size(BlockData)}|Written])};

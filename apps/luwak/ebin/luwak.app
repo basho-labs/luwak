@@ -10,7 +10,8 @@
              luwak_file,
              luwak_stream,
              luwak_tree,
-             luwak_tree_utils
+             luwak_tree_utils,
+             luwak_put_stream
             ]},
   {registered, []},
   {applications, [
