@@ -17,7 +17,7 @@ create_simple_tree_test() ->
       Children = RootNode#n.children,
       ?assertEqual([{BHash1,5},{BHash2,5},{BHash3,3}], Children)
     end).
-    
+
 create_and_overwrite_middle_tree_test() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,4},{block_size,5}], dict:new()),
@@ -58,7 +58,7 @@ create_multilevel_tree_test() ->
       ?assertEqual(SecondNodeChildren, Node2Node#n.children),
       ?assertEqual(ThirdNodeChildren, Node3Node#n.children)
     end).
-    
+
 create_and_overwrite_multilevel_tree_test() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,5},{block_size,1}], dict:new()),
@@ -84,7 +84,7 @@ create_and_overwrite_multilevel_tree_test() ->
       ?assertEqual(SecondNodeChildren, Node2Node#n.children),
       ?assertEqual(ThirdNodeChildren, Node3Node#n.children)
     end).
-    
+
 create_and_append_test() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,3},{block_size,2}], dict:new()),
@@ -92,4 +92,14 @@ create_and_append_test() ->
       {ok, Written2, File3} = luwak_io:put_range(Riak, File2, 13, <<"touchmymonkey">>),
       Blocks = [ {skerl:hexhash(512, X), 2} || <<X:2/binary>> <= <<"wontyoupleasetouchmymonkey">> ],
       ok = file:write_file("/Users/cliff/tree3.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File3, root)))
+    end).
+
+block_at_test() ->
+  test_helper:riak_test(fun(Riak) ->
+      {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,3},{block_size,3}], dict:new()),
+      {ok, Written1, File1} = luwak_io:put_range(Riak, File, 0, <<"heywhyareyoudrp">>),
+      {ok, Block} = luwak_tree:block_at(Riak, File1, 9),
+      Data = luwak_block:data(Block),
+      timer:sleep(1000),
+      ?assertEqual(<<"you">>, Data)
     end).

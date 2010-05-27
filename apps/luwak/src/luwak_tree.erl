@@ -191,21 +191,23 @@ block_at_retr(Riak, NodeName, NodeOffset, Pos) ->
 
 block_at_node(Riak, NodeObj, node, Links, NodeOffset, Pos) ->
   case which_child(Links, NodeOffset, Pos, []) of
-    {_, {ChildName,_}, _} -> block_at_retr(Riak, ChildName, NodeOffset, Pos);
+    {Head, {ChildName,_}, _} -> block_at_retr(Riak, ChildName, NodeOffset+luwak_tree_utils:blocklist_length(Head), Pos);
     {_, undefined, _} -> {ok, undefined}
   end;
 block_at_node(Riak, NodeObj, block, _, NodeOffset, _) ->
   {ok, NodeObj}.
 
 which_child([E={ChildName,Length}], NodeOffset, Pos, Acc) when Pos > Length+NodeOffset ->
+  % error_logger:info_msg("A which_child(~p, ~p, ~p)~n", [E, NodeOffset, Pos]),
   {lists:reverse([E|Acc]), undefined, []};
-which_child([{ChildName,Length}], _, _, Acc) ->
-  {lists:reverse(Acc), {ChildName,Length}, []};
-which_child([E={ChildName,Length}|Tail], NodeOffset, Pos, Acc) when Pos > NodeOffset + Length ->
-%  error_logger:info_msg("which_child(~p, ~p, ~p)~n", [[{ChildName,Length}|Tail], NodeOffset, Pos]),
+which_child([E={ChildName,Length}], NodeOffset, Pos, Acc) ->
+  % error_logger:info_msg("B which_child(~p, ~p, ~p)~n", [E, NodeOffset, Pos]),
+  {lists:reverse(Acc), E, []};
+which_child([E={ChildName,Length}|Tail], NodeOffset, Pos, Acc) when Pos >= NodeOffset + Length ->
+  % error_logger:info_msg("C which_child(~p, ~p, ~p)~n", [[{ChildName,Length}|Tail], NodeOffset, Pos]),
   which_child(Tail, NodeOffset+Length, Pos, [E|Acc]);
-which_child([E={ChildName,Length}|Tail], NodeOffset, Pos, Acc) when Pos =< NodeOffset + Length ->
-%  error_logger:info_msg("which_child(~p, ~p, ~p)~n", [[{ChildName,Length}|Tail], NodeOffset, Pos]),
+which_child([E={ChildName,Length}|Tail], NodeOffset, Pos, Acc) when Pos < NodeOffset + Length ->
+  % error_logger:info_msg("D which_child(~p, ~p, ~p)~n", [[{ChildName,Length}|Tail], NodeOffset, Pos]),
   {lists:reverse(Acc), {ChildName,Length}, Tail}.
 
 map_sublist(Fun, N, List) ->
