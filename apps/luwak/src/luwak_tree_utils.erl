@@ -17,11 +17,11 @@ longest_divisable_subtree([], [], _, _, AccA, AccB) ->
   {{lists:reverse(AccA), []}, {lists:reverse(AccB), []}};
 %% listA was exhausted first, we favor listB as a special case here
 longest_divisable_subtree([], NodesB, _, LengthB, AccA, AccB) ->
-    % error_logger:info_msg("accA ~p accB ~p~n", [AccA, AccB]),
+    ?debugFmt("accA ~p accB ~p~n", [AccA, AccB]),
   {{lists:reverse(AccA), []}, {lists:reverse(AccB) ++ NodesB, []}};
 %% listB was exhausted first, put back until equal
 longest_divisable_subtree(NodesA, [], LengthA, _, AccA, AccB) ->
-    % error_logger:info_msg("accA ~p accB ~p~n", [AccA, AccB]),
+    ?debugFmt("accA ~p accB ~p~n", [AccA, AccB]),
   {NodesB, FinalAccB} = split_at_length(lists:reverse(AccB), LengthA),
   {{lists:reverse(AccA), NodesA}, {NodesB, FinalAccB}};
 %% equal length subseq
@@ -69,20 +69,20 @@ split_at_length([{Name,L}|Children], Length, AccLen, Acc) ->
 
 five_way_split(TreePos, Nodes, InsertPos, Blocks) ->
   Offset = InsertPos - TreePos,
-  % error_logger:info_msg("offset ~p~n", [Offset]),
+  ?debugFmt("offset ~p~n", [Offset]),
   One = {NoOverlapHeadNode, TailNode1} = split_at_length(Nodes, Offset),
-  % error_logger:info_msg("1: ~p~n", [One]),
+  ?debugFmt("1: ~p~n", [One]),
   NegativeOverlap = InsertPos - (TreePos + blocklist_length(NoOverlapHeadNode)),
-  % error_logger:info_msg("neg overlap ~p~n", [NegativeOverlap]),
+  ?debugFmt("neg overlap ~p~n", [NegativeOverlap]),
   Two = {{OverlapHeadNode, TailNode2}, {OverlapHeadBlocks, TailBlocks1}} = shortest_subtree_split(TailNode1, Blocks, 0, NegativeOverlap),
-  % error_logger:info_msg("2: ~p~n", [Two]),
+  ?debugFmt("2: ~p~n", [Two]),
   Three = {{MiddleNode, TailNode3}, {MiddleBlocks, TailBlocks2}} = longest_divisable_subtree(TailNode2, TailBlocks1),
-  % error_logger:info_msg("3: ~p~n", [Three]),
+  ?debugFmt("3: ~p~n", [Three]),
   Four = {OverlapTailNode, NoOverlapTailNode} = case TailNode3 of
     [V|T] when length(TailBlocks2) > 0 -> {[V], T};
     _ -> {[], TailNode3}
   end,
-  % error_logger:info_msg("4: ~p~n", [Four]),
+  ?debugFmt("4: ~p~n", [Four]),
   {#split{
     head=NoOverlapHeadNode,
     midhead=OverlapHeadNode,
@@ -95,7 +95,7 @@ five_way_split(TreePos, Nodes, InsertPos, Blocks) ->
     midtail=TailBlocks2}}.
     
 blocklist_length(Children) ->
-  % error_logger:info_msg("blocklist_length(~p)~n", [Children]),
+  ?debugFmt("blocklist_length(~p)~n", [Children]),
   lists:foldr(fun({_,L},Acc) ->
       L+Acc
     end, 0, Children).

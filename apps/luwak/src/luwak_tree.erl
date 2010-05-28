@@ -22,9 +22,9 @@ update(Riak, File, StartingPos, Blocks) ->
       luwak_file:update_root(Riak, File, RootName);
     RootName ->
       {ok, Root} = get(Riak, RootName),
-      error_logger:info_msg("blocks~n"),
+      ?debugMsg("blocks~n"),
       WriteLength = luwak_tree_utils:blocklist_length(Blocks),
-      error_logger:info_msg("children~n"),
+      ?debugMsg("children~n"),
       RootLength = luwak_tree_utils:blocklist_length(Root#n.children),
       {ok, NewRoot} = subtree_update(Riak, File, Order, StartingPos, 0, 
         Root, Blocks),
@@ -34,33 +34,29 @@ update(Riak, File, StartingPos, Blocks) ->
 
 get_range(_, _, _, _, _, 0) ->
   [];
-% get_range(_, _, _, TreeStart, Start, _) when Start < TreeStart ->
-%   error_logger:info_msg("C get_range(_, _, _, ~p, ~p, _)~n", [TreeStart, Start]),
-%   %% what are you even doing here
-%   [];
 get_range(Riak, Parent = #n{children=[]}, BlockSize, TreeStart, Start, End) ->
-  error_logger:info_msg("D get_range(_, _, _, _, _, _)~n"),
+  ?debugMsg("D get_range(_, _, _, _, _, _)~n"),
   [];
 %% children are individual blocks
 %% we can do this because trees are guaranteed to be full
 get_range(Riak, Parent = #n{children=[{_,BlockSize}|_]=Children}, BlockSize, TreeStart, Start, End) ->
-  error_logger:info_msg("A get_range(Riak, ~p, ~p, ~p, ~p, ~p)~n", [Parent, BlockSize, TreeStart, Start, End]),
+  ?debugFmt("A get_range(Riak, ~p, ~p, ~p, ~p, ~p)~n", [Parent, BlockSize, TreeStart, Start, End]),
   {Nodes,_} = read_split(Children, TreeStart, Start, End);
 get_range(Riak, Parent = #n{children=Children}, BlockSize, TreeStart, Start, End) ->
-  error_logger:info_msg("B get_range(Riak, ~p, ~p, ~p, ~p, ~p)~n", [Parent, BlockSize, TreeStart, Start, End]),
+  ?debugFmt("B get_range(Riak, ~p, ~p, ~p, ~p, ~p)~n", [Parent, BlockSize, TreeStart, Start, End]),
   {Nodes, Length} = read_split(Children, TreeStart, Start, End),
   luwak_tree_utils:foldrflatmap(fun({Name,NodeLength}, AccLength) ->
-      error_logger:info_msg("foldrflatmap({~p,~p}, ~p)~n", [Name, NodeLength, AccLength]),
+      ?debugFmt("foldrflatmap({~p,~p}, ~p)~n", [Name, NodeLength, AccLength]),
       {ok, Node} = get(Riak, Name),
       {Blocks,_} = get_range(Riak, Node, BlockSize, AccLength, Start, End),
       {Blocks, AccLength+NodeLength}
     end, Nodes, Length).
 
 truncate(_Riak, File, _Start, undefined, _Order, _NodeOffset, _BlockSize) ->
-  error_logger:info_msg("A truncate(Riak, File, ~p, undefined, ~p, ~p, ~p)~n", [_Start, _Order, _NodeOffset, _BlockSize]),
+  ?debugFmt("A truncate(Riak, File, ~p, undefined, ~p, ~p, ~p)~n", [_Start, _Order, _NodeOffset, _BlockSize]),
   {ok, {undefined,0}};
 truncate(Riak, File, Start, Parent=#n{children=Children}, Order, NodeOffset, BlockSize) ->
-  error_logger:info_msg("B truncate(Riak, File, ~p, ~p, ~p, ~p, ~p)~n", [Start,Parent,Order,NodeOffset,BlockSize]),
+  ?debugFmt("B truncate(Riak, File, ~p, ~p, ~p, ~p, ~p)~n", [Start,Parent,Order,NodeOffset,BlockSize]),
   {Keep, {Recurse,RecLength}, _} = which_child(Children, NodeOffset, Start, []),
   KeepLength = luwak_tree_utils:blocklist_length(Keep),
   {ok, SubNode} = get(Riak, Recurse),
@@ -69,7 +65,7 @@ truncate(Riak, File, Start, Parent=#n{children=Children}, Order, NodeOffset, Blo
   NewNodeVal = riak_object:get_value(NewNode),
   {ok, {riak_object:key(NewNode), luwak_tree_utils:blocklist_length(NewNodeVal#n.children)}};
 truncate(Riak, File, Start, Block, _Order, NodeOffset, BlockSize) ->
-  error_logger:info_msg("C truncate(Riak, File, ~p, ~p, ~p, ~p, ~p)~n", [Start, Block, _Order, NodeOffset, BlockSize]),
+  ?debugFmt("C truncate(Riak, File, ~p, ~p, ~p, ~p, ~p)~n", [Start, Block, _Order, NodeOffset, BlockSize]),
   Data = luwak_block:data(Block),
   ByteOffset = Start - NodeOffset,
   <<Retain:ByteOffset/binary, _/binary>> = Data,
@@ -79,12 +75,12 @@ truncate(Riak, File, Start, Block, _Order, NodeOffset, BlockSize) ->
 read_split(Children, TreeStart, Start, End) when Start < 0 ->
   read_split(Children, TreeStart, 0, End);
 read_split(Children, TreeStart, Start, End) ->
-  error_logger:info_msg("read_split(~p, ~p, ~p, ~p)~n", [Children, TreeStart, Start, End]),
+  ?debugFmt("read_split(~p, ~p, ~p, ~p)~n", [Children, TreeStart, Start, End]),
   InsidePos = Start - TreeStart,
   InsideEnd = End - TreeStart,
   {Head,Tail} = luwak_tree_utils:split_at_length(Children, InsidePos),
   {Middle,_} = luwak_tree_utils:split_at_length_left_bias(Tail, InsideEnd),
-  error_logger:info_msg("middle ~p~n", [Middle]),
+  ?debugFmt("middle ~p~n", [Middle]),
   {Middle, luwak_tree_utils:blocklist_length(Head)+TreeStart}.
 
 get(Riak, Name) when is_binary(Name) ->
@@ -115,7 +111,7 @@ visualize_tree(Riak, DataName = <<Prefix:8/binary, _/binary>>, DataNode) ->
   io_lib:format("\"~s\" [shape=record,label=\"~s | ~s\",regular=1,style=filled,fillcolor=gray ] ;~n", [DataName,Prefix,Data]).
 
 create_tree(Riak, Order, Children) when is_list(Children) ->
-  % error_logger:info_msg("create_tree(Riak, ~p, ~p)~n", [Order, Children]),
+  ?debugFmt("create_tree(Riak, ~p, ~p)~n", [Order, Children]),
   if
     length(Children) > Order ->
       Written = list_into_nodes(Riak, Children, Order, 0),
@@ -126,11 +122,11 @@ create_tree(Riak, Order, Children) when is_list(Children) ->
 
 %% updating any node happens in up to 5 parts, depending on the coverage of the write list
 subtree_update(Riak, File, Order, InsertPos, TreePos, Parent = #n{}, Blocks) ->
-  % error_logger:info_msg("subtree_update(Riak, File, ~p, ~p, ~p, ~p, ~p)~n", [Order, InsertPos, TreePos, Parent, truncate(Blocks)]),
+  ?debugFmt("subtree_update(Riak, File, ~p, ~p, ~p, ~p, ~p)~n", [Order, InsertPos, TreePos, Parent, truncate(Blocks)]),
   {NodeSplit, BlockSplit} = luwak_tree_utils:five_way_split(TreePos, Parent#n.children, InsertPos, Blocks),
-  % error_logger:info_msg("NodeSplit ~p BlockSplit ~p~n", [NodeSplit, BlockSplit]),
+  ?debugFmt("NodeSplit ~p BlockSplit ~p~n", [NodeSplit, BlockSplit]),
   MidHeadStart = luwak_tree_utils:blocklist_length(NodeSplit#split.head) + TreePos,
-  % error_logger:info_msg("midhead~n"),
+  ?debugMsg("midhead~n"),
   MidHeadReplacement = lists:map(fun({Name,Length}) ->
       {ok, ChildNode} = get(Riak, Name),
       {ok, ReplacementChild} = subtree_update(Riak, File, Order, 
@@ -140,10 +136,10 @@ subtree_update(Riak, File, Order, InsertPos, TreePos, Parent = #n{}, Blocks) ->
       {riak_object:key(ReplacementChild), luwak_tree_utils:blocklist_length(V#n.children)}
     end, NodeSplit#split.midhead),
   MiddleInsertStart = luwak_tree_utils:blocklist_length(BlockSplit#split.midhead) + MidHeadStart,
-  % error_logger:info_msg("middle~n"),
+  ?debugMsg("middle~n"),
   MiddleReplacement = list_into_nodes(Riak, BlockSplit#split.middle, Order, MiddleInsertStart),
   MidTailStart = luwak_tree_utils:blocklist_length(BlockSplit#split.middle) + MiddleInsertStart,
-  % error_logger:info_msg("midtail~n"),
+  ?debugMsg("midtail~n"),
   MidTailReplacement = lists:map(fun({Name,Length}) ->
       {ok, ChildNode} = get(Riak, Name),
       {ok, ReplacementChild} = subtree_update(Riak, File, Order,
@@ -152,7 +148,7 @@ subtree_update(Riak, File, Order, InsertPos, TreePos, Parent = #n{}, Blocks) ->
       V = riak_object:get_value(ReplacementChild),
       {riak_object:key(ReplacementChild), luwak_tree_utils:blocklist_length(V#n.children)}
     end, NodeSplit#split.midtail),
-  % error_logger:info_msg("end~n"),
+  ?debugMsg("end~n"),
   create_tree(Riak, Order, NodeSplit#split.head ++ 
     MidHeadReplacement ++ 
     MiddleReplacement ++ 
@@ -160,7 +156,7 @@ subtree_update(Riak, File, Order, InsertPos, TreePos, Parent = #n{}, Blocks) ->
     NodeSplit#split.tail).
 
 list_into_nodes(Riak, Children, Order, StartingPos) ->
-  % error_logger:info_msg("list_into_nodes(Riak, ~p, ~p, ~p)~n", [Children, Order, StartingPos]),
+  ?debugFmt("list_into_nodes(Riak, ~p, ~p, ~p)~n", [Children, Order, StartingPos]),
   map_sublist(fun(Sublist) ->
       Length = luwak_tree_utils:blocklist_length(Sublist),
       {ok, Obj} = create_node(Riak, Sublist),
@@ -175,7 +171,6 @@ block_at(Riak, File, Pos) ->
   Length = luwak_file:get_property(File, length),
   case luwak_file:get_property(File, root) of
     undefined -> {error, notfound};
-    % RootName when Pos > Length -> eof;
     RootName ->
       block_at_retr(Riak, RootName, 0, Pos)
   end.
@@ -198,16 +193,16 @@ block_at_node(Riak, NodeObj, block, _, NodeOffset, _) ->
   {ok, NodeObj}.
 
 which_child([E={ChildName,Length}], NodeOffset, Pos, Acc) when Pos > Length+NodeOffset ->
-  % error_logger:info_msg("A which_child(~p, ~p, ~p)~n", [E, NodeOffset, Pos]),
+  ?debugFmt("A which_child(~p, ~p, ~p)~n", [E, NodeOffset, Pos]),
   {lists:reverse([E|Acc]), undefined, []};
 which_child([E={ChildName,Length}], NodeOffset, Pos, Acc) ->
-  % error_logger:info_msg("B which_child(~p, ~p, ~p)~n", [E, NodeOffset, Pos]),
+  ?debugFmt("B which_child(~p, ~p, ~p)~n", [E, NodeOffset, Pos]),
   {lists:reverse(Acc), E, []};
 which_child([E={ChildName,Length}|Tail], NodeOffset, Pos, Acc) when Pos >= NodeOffset + Length ->
-  % error_logger:info_msg("C which_child(~p, ~p, ~p)~n", [[{ChildName,Length}|Tail], NodeOffset, Pos]),
+  ?debugFmt("C which_child(~p, ~p, ~p)~n", [[{ChildName,Length}|Tail], NodeOffset, Pos]),
   which_child(Tail, NodeOffset+Length, Pos, [E|Acc]);
 which_child([E={ChildName,Length}|Tail], NodeOffset, Pos, Acc) when Pos < NodeOffset + Length ->
-  % error_logger:info_msg("D which_child(~p, ~p, ~p)~n", [[{ChildName,Length}|Tail], NodeOffset, Pos]),
+  ?debugFmt("D which_child(~p, ~p, ~p)~n", [[{ChildName,Length}|Tail], NodeOffset, Pos]),
   {lists:reverse(Acc), {ChildName,Length}, Tail}.
 
 map_sublist(Fun, N, List) ->
@@ -226,28 +221,8 @@ map_sublist_1(Fun, N, [E|List], Sublist, Acc) ->
   map_sublist_1(Fun, N, List, [E|Sublist], Acc).
 
 create_node(Riak, Children) ->
-  % error_logger:info_msg("create_node(Riak, ~p)~n", [Children]),
+  ?debugFmt("create_node(Riak, ~p)~n", [Children]),
   N = #n{created=now(),children=Children},
   Name = skerl:hexhash(?HASH_LEN, term_to_binary(Children)),
   Obj = riak_object:new(?N_BUCKET, Name, N),
   {Riak:put(Obj, 2), Obj}.
-
-floor(X) ->
-  T = erlang:trunc(X),
-  case (X - T) of
-    Neg when Neg < 0 -> T - 1;
-    Pos when Pos > 0 -> T;
-    _ -> T
-  end.
-
-ceiling(X) ->
-  T = erlang:trunc(X),
-  case (X - T) of
-    Neg when Neg < 0 -> T;
-    Pos when Pos > 0 -> T + 1;
-    _ -> T
-  end.
-
-truncate(List) when is_list(List) ->
-  lists:map(fun({Data,Length}) -> {truncate(Data),Length} end, List);
-truncate(Data = <<Prefix:8/binary, _/binary>>) -> Prefix.

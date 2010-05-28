@@ -2,6 +2,9 @@
 
 -define(BUFFER_SIZE, 20).
 -record(state, {file,offset,blocksize,ref,ttl,written=[],buffer=[],buffersize=0}).
+
+-include_lib("luwak/include/luwak.hrl").
+
 %% API
 -export([start_link/4, start/4, send/2, ping/1, close/1, status/2]).
 
@@ -87,12 +90,12 @@ update_tree(Riak, State) ->
   State.
 
 flush(Riak, State=#state{offset=Offset,file=File,buffer=Buffer,written=Written}) when length(Buffer) > 0 ->
-  error_logger:info_msg("A flush(Riak, ~p)~n", [State]),
+  ?debugFmt("A flush(Riak, ~p)~n", [State]),
   {ok, Written1} = luwak_io:no_tree_put_range(Riak, File, Offset, iolist_to_binary(lists:reverse(Buffer))),
   WriteSize = luwak_tree_utils:blocklist_length(Written1),
   flush(Riak, State#state{offset=Offset+WriteSize,buffer=[],buffersize=0,written=Written++Written1});
 flush(Riak, State=#state{offset=Offset,file=File,written=Written}) when length(Written) > 0 ->
-  error_logger:info_msg("B flush(Riak, ~p)~n", [State]),
+  ?debugFmt("B flush(Riak, ~p)~n", [State]),
   OriginalOffset = Offset - luwak_tree_utils:blocklist_length(Written),
   {ok, NewFile} = luwak_tree:update(Riak, File, OriginalOffset, Written),
   {flushed, State#state{file=NewFile}};
