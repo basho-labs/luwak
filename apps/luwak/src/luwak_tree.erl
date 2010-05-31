@@ -165,7 +165,9 @@ subtree_update(Riak, File, Order, InsertPos, TreePos, Parent = #n{}, Blocks) ->
 
 list_into_nodes(Riak, Children, Order, StartingPos) ->
   ?debugFmt("list_into_nodes(Riak, ~p, ~p, ~p)~n", [Children, Order, StartingPos]),
-  Written = map_sublist(fun(Sublist) ->
+  Written = map_sublist(fun([{SubNode,Length}]) ->
+      {SubNode,Length};
+    (Sublist) ->
       Length = luwak_tree_utils:blocklist_length(Sublist),
       {ok, Obj} = create_node(Riak, Sublist),
       {riak_object:key(Obj), Length}
@@ -238,3 +240,8 @@ create_node(Riak, Children) ->
   Name = skerl:hexhash(?HASH_LEN, term_to_binary(Children)),
   Obj = riak_object:new(?N_BUCKET, Name, N),
   {Riak:put(Obj, 2), Obj}.
+
+
+truncate(List) when is_list(List) ->
+ lists:map(fun({Data,Length}) -> {truncate(Data),Length} end, List);
+truncate(Data = <<Prefix:8/binary, _/binary>>) -> Prefix.
