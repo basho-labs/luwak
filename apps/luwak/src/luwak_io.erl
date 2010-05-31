@@ -14,7 +14,7 @@ get_range(Riak, File, Start, Length) ->
   Blocks = luwak_tree:get_range(Riak, RootObj, BlockSize, 0, Start, Start+Length),
   ?debugFmt("blocks ~p~n", [Blocks]),
   ChopHead = Start rem BlockSize,
-  ?debugFmt("chophead ~p choptail ~p~n", [ChopHead, Length]),
+  ?debugFmt("chophead ~p length ~p~n", [ChopHead, Length]),
   retrieve_blocks(Riak, Blocks, ChopHead, Length).
   
 truncate(Riak, File, 0) ->
