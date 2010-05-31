@@ -17,7 +17,7 @@ start(Riak, File, Start, Length) ->
   Root = luwak_file:get_property(File, root),
   MapStart = [{{?N_BUCKET, Root}, 0}],
   Map = #map{riak=Riak,blocksize=BlockSize,ref=Ref,offset=Start,endoffset=Start+Length},
-  Receiver = proc_lib:spawn_link(receiver_fun(MapStart, self(), Map)),
+  Receiver = proc_lib:spawn(receiver_fun(MapStart, self(), Map)),
   {get_stream, Ref, Receiver}.
   
 %% @spec recv(Stream :: get_stream(), Timeout :: int()) ->
@@ -51,6 +51,7 @@ nonblock_mr(Riak,Query,MapInput) ->
   
 receiver_fun(MapInput, Parent, Map=#map{riak=Riak,offset=Offset,endoffset=EndOffset,ref=Ref}) ->
   fun() ->
+    ?debugFmt("receiver_fun(~p, ~p, ~p)~n", [MapInput, Parent, Map]),
     Query = [{map,{qfun,map_fun()},Map#map{pid=self()}, false}],
     nonblock_mr(Riak, Query, MapInput),
     receive_loop(Ref, Offset, EndOffset, Parent)

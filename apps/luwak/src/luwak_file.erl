@@ -1,7 +1,8 @@
 -module(luwak_file).
 
 -export([create/3, create/4, set_attributes/3, get_attributes/1, exists/2, 
-         delete/2, get/2, get_property/2, update_root/3, name/1, length/2]).
+         delete/2, get/2, get_property/2, update_root/3, update_checksum/3, 
+         name/1, length/2]).
 
 -include_lib("luwak/include/luwak.hrl").
 
@@ -21,9 +22,13 @@ create(Riak, Name, Attributes) when is_binary(Name) ->
 %%                            is 1000000.
 %%      {tree_order, int()} - The maximum number of children for an individual tree node. Default
 %%                            is 250.
+%%      {checksumming, boolean()} - This controls whether or not checksumming will occur.  Checksumming
+%%                                  will leave a checksum of the most recent write request as a property
+%%                                  of the filehandle.
 create(Riak, Name, Properties, Attributes) when is_binary(Name) ->
   BlockSize = proplists:get_value(block_size, Properties, ?BLOCK_DEFAULT),
   Order = proplists:get_value(tree_order, Properties, ?ORDER_DEFAULT),
+  Checksumming = proplists:get_value(checksumming, Properties, false),
   if
     Order < 2 -> throw("tree_order cannot be less than 2");
     BlockSize < 1 -> throw("block_size cannot be less than 1");
@@ -34,6 +39,8 @@ create(Riak, Name, Properties, Attributes) when is_binary(Name) ->
     {block_size, BlockSize},
     {created, now()},
     {modified, now()},
+    {checksumming, Checksumming},
+    {checksum, undefined},
     {tree_order, Order},
     {ancestors, []},
     {root, undefined}
@@ -118,7 +125,22 @@ update_root(Riak, Obj, NewRoot) ->
   ObjVal2 = lists:keyreplace(ancestors, 1, ObjVal1, {ancestors, [OldRoot|Ancestors]}),
   ObjVal3 = lists:keyreplace(root, 1, ObjVal2, {root, NewRoot}),
   Obj2 = riak_object:apply_updates(riak_object:update_value(Obj, ObjVal3)),
-  {Riak:put(Obj2, 2), Obj2}.
+  ok = Riak:put(Obj2, 2),
+  {ok, Obj2}.
+
+%% @private
+update_checksum(Riak, Obj, ChecksumFun) ->
+  case get_property(Obj, checksumming) of
+    true ->
+      Values = riak_object:get_value(Obj),
+      ObjVal1 = riak_object:get_value(Obj),
+      ObjVal2 = lists:keyreplace(checksum, 1, ObjVal1, {checksum, {sha1, ChecksumFun()}}),
+      Obj2 = riak_object:apply_updates(riak_object:update_value(Obj, ObjVal2)),
+      ok = Riak:put(Obj2, 2),
+      {ok, Obj2};
+    _ ->
+      {ok, Obj}
+  end.
 
 %% @spec name(Obj :: luwak_file()) -> binary()
 %% @doc returns the name of the given file handle.

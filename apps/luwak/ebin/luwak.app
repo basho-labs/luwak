@@ -11,7 +11,8 @@
              luwak_tree,
              luwak_tree_utils,
              luwak_put_stream,
-             luwak_get_stream
+             luwak_get_stream,
+             luwak_checksum
             ]},
   {registered, []},
   {applications, [

@@ -1,7 +1,7 @@
 -module(luwak_put_stream).
 
 -define(BUFFER_SIZE, 20).
--record(state, {file,offset,blocksize,ref,ttl,written=[],buffer=[],buffersize=0}).
+-record(state, {file,offset,blocksize,ref,ttl,written=[],buffer=[],buffersize=0,checksumming=false,ctx=crypto:sha_init()}).
 
 -include_lib("luwak/include/luwak.hrl").
 
@@ -19,16 +19,18 @@
 start_link(Riak, File, Offset, TTL) ->
   Ref = make_ref(),
   BlockSize = luwak_file:get_property(File, block_size),
+  Checksumming = luwak_file:get_property(File, checksumming),
   Pid = proc_lib:spawn_link(fun() ->
-      recv(Riak, #state{file=File,offset=Offset,blocksize=BlockSize,ref=Ref,ttl=TTL})
+      recv(Riak, #state{file=File,offset=Offset,blocksize=BlockSize,ref=Ref,ttl=TTL,checksumming=Checksumming})
     end),
   {put_stream, Ref, Pid}.
 
 start(Riak, File, Offset, TTL) ->
   Ref = make_ref(),
   BlockSize = luwak_file:get_property(File, block_size),
+  Checksumming = luwak_file:get_property(File, checksumming),
   Pid = proc_lib:spawn(fun() ->
-      recv(Riak, #state{file=File,offset=Offset,blocksize=BlockSize,ref=Ref,ttl=TTL})
+      recv(Riak, #state{file=File,offset=Offset,blocksize=BlockSize,ref=Ref,ttl=TTL,checksumming=Checksumming})
     end),
   {put_stream, Ref, Pid}.
 
@@ -97,36 +99,47 @@ handle_data(Riak, State=#state{file=File,offset=Offset,blocksize=BlockSize,buffe
   PartialSize = BlockSize - Offset rem BlockSize,
   <<PartialData:PartialSize/binary, TailData/binary>> = iolist_to_binary(lists:reverse(Buffer)),
   {ok, [W]} = luwak_io:no_tree_put_range(Riak, File, Offset, PartialData),
-  update_tree(Riak, State#state{offset=Offset+PartialSize,buffer=[TailData],buffersize=byte_size(TailData),written=[W]});
+  update_tree(Riak, checksum(PartialData, State#state{offset=Offset+PartialSize,buffer=[TailData],buffersize=byte_size(TailData),written=[W]}));
 handle_data(Riak, State=#state{file=File,offset=Offset,blocksize=BlockSize,buffer=Buffer,written=Written,buffersize=BufferSize}) when BufferSize >= BlockSize ->
   BufferSize = iolist_size(Buffer),
   PartialSize = BufferSize - BufferSize rem BlockSize,
   <<PartialData:PartialSize/binary, TailData/binary>> = iolist_to_binary(lists:reverse(Buffer)),
   {ok, Written1} = luwak_io:no_tree_put_range(Riak, File, Offset, PartialData),
-  update_tree(Riak, State#state{offset=Offset+PartialSize,buffer=[TailData],buffersize=byte_size(TailData),written=Written ++ Written1});
+  update_tree(Riak, checksum(PartialData, State#state{offset=Offset+PartialSize,buffer=[TailData],buffersize=byte_size(TailData),written=Written ++ Written1}));
 handle_data(Riak, State) ->
   update_tree(Riak, State).
 
 update_tree(Riak, State=#state{offset=Offset,file=File,written=Written}) when length(Written) >= ?BUFFER_SIZE ->
   OriginalOffset = Offset - luwak_tree_utils:blocklist_length(Written),
   {ok, NewFile} = luwak_tree:update(Riak, File, OriginalOffset, Written),
-  State#state{file=NewFile};
+  update_checksum(Riak, State#state{file=NewFile});
 update_tree(Riak, State) ->
   State.
 
 flush(Riak, State=#state{offset=Offset,file=File,buffer=Buffer,written=Written}) when length(Buffer) > 0 ->
   ?debugFmt("A flush(Riak, ~p)~n", [State]),
-  {ok, Written1} = luwak_io:no_tree_put_range(Riak, File, Offset, iolist_to_binary(lists:reverse(Buffer))),
+  Data = iolist_to_binary(lists:reverse(Buffer)),
+  {ok, Written1} = luwak_io:no_tree_put_range(Riak, File, Offset, Data),
   WriteSize = luwak_tree_utils:blocklist_length(Written1),
-  flush(Riak, State#state{offset=Offset+WriteSize,buffer=[],buffersize=0,written=Written++Written1});
+  flush(Riak, checksum(Data, State#state{offset=Offset+WriteSize,buffer=[],buffersize=0,written=Written++Written1}));
 flush(Riak, State=#state{offset=Offset,file=File,written=Written}) when length(Written) > 0 ->
   ?debugFmt("B flush(Riak, ~p)~n", [State]),
   OriginalOffset = Offset - luwak_tree_utils:blocklist_length(Written),
   {ok, NewFile} = luwak_tree:update(Riak, File, OriginalOffset, Written),
-  State#state{file=NewFile};
+  update_checksum(Riak, State#state{file=NewFile});
 flush(Riak, State) ->
   State.
-  
+
+checksum(_, State=#state{checksumming=false}) ->
+  State;
+checksum(Data, State=#state{ctx=Ctx}) ->
+  State#state{ctx=crypto:sha_update(Ctx,Data)}.
+
+update_checksum(_, State=#state{checksumming=false}) ->
+  State;
+update_checksum(Riak, State=#state{ctx=Ctx,file=File}) ->
+  {ok, File1} = luwak_file:update_checksum(Riak,File,fun() -> crypto:sha_final(Ctx) end),
+  State#state{file=File1}.
+
 close(Riak, State) ->
   {closed, flush(Riak, State)}.
-  

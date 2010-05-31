@@ -63,12 +63,14 @@ internal_put_range(Riak, File, Start, Data) ->
     0 ->
       {ok, Written} = write_blocks(Riak, File, undefined, Start, Data, BlockSize, []),
       {ok, NewFile} = luwak_tree:update(Riak, File, BlockAlignedStart, Written),
-      {ok, Written, NewFile};
+      {ok, NewFile1} = luwak_file:update_checksum(Riak, NewFile, fun() -> crypto:sha(Data) end),
+      {ok, Written, NewFile1};
     BlockOffset -> 
       {ok, Block} = luwak_tree:block_at(Riak, File, Start),
       {ok, Written} = write_blocks(Riak, File, Block, Start, Data, BlockSize, []),
       {ok, NewFile} = luwak_tree:update(Riak, File, BlockAlignedStart, Written),
-      {ok, Written, NewFile}
+      {ok, NewFile1} = luwak_file:update_checksum(Riak, NewFile, fun() -> crypto:sha(Data) end),
+      {ok, Written, NewFile1}
   end.
 
 write_blocks(_, _, _, Start, <<>>, _, Written) when is_list(Written) ->
