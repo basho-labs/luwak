@@ -91,7 +91,16 @@ create_and_append_test() ->
       {ok, Written1, File2} = luwak_io:put_range(Riak, File, 0, <<"wontyouplease">>),
       {ok, Written2, File3} = luwak_io:put_range(Riak, File2, 13, <<"touchmymonkey">>),
       Blocks = [ {skerl:hexhash(512, X), 2} || <<X:2/binary>> <= <<"wontyoupleasetouchmymonkey">> ],
-      ok = file:write_file("/Users/cliff/tree3.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File3, root)))
+      ok = file:write_file("tree3.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File3, root))),
+      ?assertEqual(<<"wontyoupleasetouchmymonkey">>, iolist_to_binary(luwak_io:get_range(Riak, File3, 0, 26)))      
+    end).
+
+append_beyond_pointer_test() ->
+  test_helper:riak_test(fun(Riak) ->
+      {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,3},{block_size,2}], dict:new()),
+      {ok, Written1, File2} = luwak_io:put_range(Riak, File, 0, <<"wontyouplease">>),
+      {ok, Written2, File3} = luwak_io:put_range(Riak, File2, 15, <<"touchmymonkey">>),
+      ?assertEqual(<<"wontyoupleasetouchmymonkey">>, iolist_to_binary(luwak_io:get_range(Riak, File3, 0, 26)))
     end).
 
 block_at_test() ->
