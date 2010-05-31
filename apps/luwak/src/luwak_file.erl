@@ -15,6 +15,11 @@ create(Riak, Name, Attributes) when is_binary(Name) ->
 create(Riak, Name, Properties, Attributes) when is_binary(Name) ->
   BlockSize = proplists:get_value(block_size, Properties, ?BLOCK_DEFAULT),
   Order = proplists:get_value(tree_order, Properties, ?ORDER_DEFAULT),
+  if
+    Order < 2 -> throw("tree_order cannot be less than 2");
+    BlockSize < 1 -> throw("block_size cannot be less than 1");
+    true -> ok
+  end,
   Value = [
     {attributes, Attributes},
     {block_size, BlockSize},
