@@ -116,7 +116,13 @@ visualize_tree(Riak, RootName = <<Prefix:8/binary, _/binary>>, #n{children=Child
     end, Children);
 visualize_tree(Riak, DataName = <<Prefix:8/binary, _/binary>>, DataNode) ->
   Data = luwak_block:data(DataNode),
-  io_lib:format("\"~s\" [shape=record,label=\"~s | ~s\",regular=1,style=filled,fillcolor=gray ] ;~n", [DataName,Prefix,Data]).
+  PrefixData = if
+    byte_size(Data) > 8 ->
+        <<P:8/binary, _/binary>> = Data,
+        P;
+    true -> Data
+  end,
+  io_lib:format("\"~s\" [shape=record,label=\"~s | ~s\",regular=1,style=filled,fillcolor=gray ] ;~n", [DataName,Prefix,PrefixData]).
 
 create_tree(Riak, Order, Children) when is_list(Children) ->
   ?debugFmt("create_tree(Riak, ~p, ~p)~n", [Order, Children]),
