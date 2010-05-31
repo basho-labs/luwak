@@ -1,0 +1,93 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>Module luwak_file</title>
+<link rel="stylesheet" type="text/css" href="stylesheet.css" title="EDoc">
+</head>
+<body bgcolor="white">
+<div class="navbar"><a name="#navbar_top"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<hr>
+
+<h1>Module luwak_file</h1>
+<ul class="index"><li><a href="#index">Function Index</a></li><li><a href="#functions">Function Details</a></li></ul>
+
+
+<h2><a name="index">Function Index</a></h2>
+<table width="100%" border="1" cellspacing="0" cellpadding="2" summary="function index"><tr><td valign="top"><a href="#create-3">create/3</a></td><td>Create a luwak file handle with the given name and attributes.</td></tr>
+<tr><td valign="top"><a href="#create-4">create/4</a></td><td>Create a luwak file handle with the given name and attributes.</td></tr>
+<tr><td valign="top"><a href="#delete-2">delete/2</a></td><td>deletes the named file from luwak.</td></tr>
+<tr><td valign="top"><a href="#exists-2">exists/2</a></td><td>Checks for the existence of the named file.</td></tr>
+<tr><td valign="top"><a href="#get-2">get/2</a></td><td>returns a filehandle for the named file.</td></tr>
+<tr><td valign="top"><a href="#get_attributes-1">get_attributes/1</a></td><td>Gets the attribute dictionary from the file handle.</td></tr>
+<tr><td valign="top"><a href="#get_property-2">get_property/2</a></td><td>retrieves the named property from the filehandle.</td></tr>
+<tr><td valign="top"><a href="#length-2">length/2</a></td><td>returns the length in bytes of the file.</td></tr>
+<tr><td valign="top"><a href="#name-1">name/1</a></td><td>returns the name of the given file handle.</td></tr>
+<tr><td valign="top"><a href="#set_attributes-3">set_attributes/3</a></td><td>Sets the new attributes, saves them, and returns a new file handle.</td></tr>
+</table>
+
+<h2><a name="functions">Function Details</a></h2>
+
+<h3 class="function"><a name="create-3">create/3</a></h3>
+<div class="spec">
+<p><tt>create(Riak::<a href="#type-riak">riak()</a>, Name::binary(), Attributes::<a href="#type-dict">dict()</a>) -&gt; {ok, File::<a href="#type-luwak_file">luwak_file()</a>}</tt></p>
+</div><p>Equivalent to <a href="#create-4"><tt>create(Riak, Name, [], Attributes)</tt></a>.</p>
+<p>Create a luwak file handle with the given name and attributes.  Will
+       overwrite an existing file of the same name.</p>
+
+<h3 class="function"><a name="create-4">create/4</a></h3>
+<div class="spec">
+<p><tt>create(Riak::<a href="#type-riak">riak()</a>, Name::binary(), Properties::<a href="#type-proplist">proplist()</a>, Attributes::<a href="#type-dict">dict()</a>) -&gt; {ok, File::<a href="#type-luwak_file">luwak_file()</a>}</tt></p>
+</div><p>Create a luwak file handle with the given name and attributes.
+       Recognized properties:
+       {block_size, int()} - The maximum size of an individual data chunk in bytes.  Default
+                             is 1000000.
+       {tree_order, int()} - The maximum number of children for an individual tree node. Default
+                             is 250.</p>
+
+<h3 class="function"><a name="delete-2">delete/2</a></h3>
+<div class="spec">
+<p><tt>delete(Riak::<a href="#type-riak">riak()</a>, Name::binary()) -&gt; ok | {error, Reason}</tt></p>
+</div><p>deletes the named file from luwak.  This is a fast operation since
+       the blocks and tree for that file remain untouched.  A GC operation
+       (not yet implemented) will be required to clean them up properly.</p>
+
+<h3 class="function"><a name="exists-2">exists/2</a></h3>
+<div class="spec">
+<p><tt>exists(Riak::<a href="#type-riak">riak()</a>, Name::binary()) -&gt; {ok, true} | {ok, false} | {error, Reason}</tt></p>
+</div><p>Checks for the existence of the named file.</p>
+
+<h3 class="function"><a name="get-2">get/2</a></h3>
+<div class="spec">
+<p><tt>get(Riak::<a href="#type-riak">riak()</a>, Name::binary()) -&gt; {ok, File} | {error, Reason}</tt></p>
+</div><p>returns a filehandle for the named file.</p>
+
+<h3 class="function"><a name="get_attributes-1">get_attributes/1</a></h3>
+<div class="spec">
+<p><tt>get_attributes(Obj::<a href="#type-luwak_file">luwak_file()</a>) -&gt; <a href="#type-dict">dict()</a></tt></p>
+</div><p>Gets the attribute dictionary from the file handle.</p>
+
+<h3 class="function"><a name="get_property-2">get_property/2</a></h3>
+<div class="spec">
+<p><tt>get_property(Obj::<a href="#type-luwak_file">luwak_file()</a>, PropName::atom()) -&gt; Property</tt></p>
+</div><p>retrieves the named property from the filehandle.</p>
+
+<h3 class="function"><a name="length-2">length/2</a></h3>
+<div class="spec">
+<p><tt>length(Riak::<a href="#type-riak">riak()</a>, File::<a href="#type-luwak_file">luwak_file()</a>) -&gt; Length</tt></p>
+</div><p>returns the length in bytes of the file.</p>
+
+<h3 class="function"><a name="name-1">name/1</a></h3>
+<div class="spec">
+<p><tt>name(Obj::<a href="#type-luwak_file">luwak_file()</a>) -&gt; binary()</tt></p>
+</div><p>returns the name of the given file handle.</p>
+
+<h3 class="function"><a name="set_attributes-3">set_attributes/3</a></h3>
+<div class="spec">
+<p><tt>set_attributes(Riak::<a href="#type-riak">riak()</a>, Obj::<a href="#type-luwak_file">luwak_file()</a>, Attributes::<a href="#type-dict">dict()</a>) -&gt; {ok, NewFile}</tt></p>
+</div><p>Sets the new attributes, saves them, and returns a new file handle.</p>
+<hr>
+
+<div class="navbar"><a name="#navbar_bottom"></a><table width="100%" border="0" cellspacing="0" cellpadding="2" summary="navigation bar"><tr><td><a href="overview-summary.html" target="overviewFrame">Overview</a></td><td><a href="http://www.erlang.org/"><img src="erlang.png" align="right" border="0" alt="erlang logo"></a></td></tr></table></div>
+<p><i>Generated by EDoc, May 31 2010, 11:13:39.</i></p>
+</body>
+</html>

@@ -1,15 +1,17 @@
 -module(luwak_get_stream).
 
--export([get_stream/4, recv/2]).
+-export([start/4, recv/2, close/1]).
 
 -record(map, {riak,blocksize,ref,pid,offset,endoffset}).
 
 -include_lib("luwak/include/luwak.hrl").
 
 
-%% @spec get_stream(Riak :: riak(), File :: luwak_file(), Start :: int(), Length :: length()) ->
-%%        get_stream() | {error, Reason}
-get_stream(Riak, File, Start, Length) ->
+%% @spec start(Riak :: riak(), File :: luwak_file(), Start :: int(), Length :: length()) ->
+%%        get_stream()
+%% @doc Creates and returns a handle to a streaming get.  Initiating this call will cause
+%%      the requested datablock ranges to be delivered as a set of messages to the calling process.
+start(Riak, File, Start, Length) ->
   Ref = make_ref(),
   BlockSize = luwak_file:get_property(File, block_size),
   Root = luwak_file:get_property(File, root),
@@ -18,6 +20,12 @@ get_stream(Riak, File, Start, Length) ->
   Receiver = proc_lib:spawn_link(receiver_fun(MapStart, self(), Map)),
   {get_stream, Ref, Receiver}.
   
+%% @spec recv(Stream :: get_stream(), Timeout :: int()) ->
+%%        {binary(), int()} | eos | closed | {error, timeout}
+%% @doc Receive will block the calling process until either the next data block has been
+%%      delivered, the stream ends, or until Timeout milliseconds have elapsed.  Whichever
+%%      occurs first.  The data blocks are returned as a tuple with the data binary and
+%%      its offset from the start of the file.
 recv({get_stream, Ref, Pid}, Timeout) ->
   receive
     {get, Ref, Data, Offset} -> {Data, Offset};
@@ -26,9 +34,14 @@ recv({get_stream, Ref, Pid}, Timeout) ->
   after Timeout ->
     {error, timeout}
   end.
+
+%% @doc Closes a get stream.  Use this to stop the flow of messages from a get stream.
+%%      It is not required that a completed stream have close called on it.
+close({get_stream, Ref, Pid}) ->
+  Pid ! {close, Ref}.
   
 nonblock_mr(Riak,Query,MapInput) ->
-  case Riak:mapred_stream(Query,self(),30000) of
+  case Riak:mapred_stream(Query,self(),60000) of
       {ok, {ReqId, FlowPid}} ->
           luke_flow:add_inputs(FlowPid, MapInput),
           luke_flow:finish_inputs(FlowPid);
@@ -53,6 +66,10 @@ receive_loop(Ref, Offset, EndOffset, Parent) ->
       ?debugFmt("receive_loop got ~p~n", [{get, Ref, Data, Offset}]),
       Parent ! {get, Ref, Data, Offset},
       receive_loop(Ref, Offset+byte_size(Data), EndOffset, Parent);
+    {eos, Ref} ->
+      ?debugMsg("receive_loop got eos~n"),
+      Parent ! {get, Ref, eos},
+      ok;
     {close, Ref} ->
       ?debugFmt("receive_loop got ~p~n", [{close, Ref}]),
       Parent ! {get, Ref, closed},
@@ -69,17 +86,22 @@ map_fun() ->
     end
   end.
   
-map(Parent=#n{}, TreeOffset, Map=#map{riak=Riak,offset=Offset,endoffset=EndOffset,blocksize=BlockSize}) ->
+map(Parent=#n{}, TreeOffset, Map=#map{riak=Riak,offset=Offset,endoffset=EndOffset,blocksize=BlockSize,pid=Pid,ref=Ref}) ->
   ?debugFmt("A map(~p, ~p, ~p)~n", [Parent, TreeOffset, Map]),
   Fun = fun({Name,Length},AccOffset) ->
     {[{{?N_BUCKET, Name}, AccOffset}], AccOffset+Length}
   end,
   Blocks = luwak_tree:get_range(Riak, Fun, Parent, BlockSize, TreeOffset, Offset, EndOffset),
-  Query = [{map,{qfun,map_fun()},Map,false}],
-  spawn(fun() ->
-    ?debugFmt("launching MR on ~p~n", [Blocks]),
-    nonblock_mr(Riak, Query, Blocks)
-  end),
+  case Blocks of
+    [] ->
+      Pid ! {eos, Ref};
+    _ ->
+      Query = [{map,{qfun,map_fun()},Map,false}],
+      spawn(fun() ->
+        ?debugFmt("launching MR on ~p~n", [Blocks]),
+        nonblock_mr(Riak, Query, Blocks)
+      end)
+  end,
   [];
 map(Block, TreeOffset, Map=#map{riak=Riak,offset=Offset,endoffset=EndOffset,ref=Ref,pid=Pid,blocksize=BlockSize}) when TreeOffset < Offset ->
   ?debugFmt("B map(~p, ~p, ~p)~n", [Block, TreeOffset, Map]),

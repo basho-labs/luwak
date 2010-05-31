@@ -1,0 +1,4 @@
+{application,luwak}.
+{packages,[]}.
+{modules,[luwak_app,luwak_block,luwak_file,luwak_get_stream,luwak_io,
+          luwak_put_stream,luwak_sup,luwak_tree,luwak_tree_utils]}.

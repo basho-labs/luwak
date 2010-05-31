@@ -1,0 +1,105 @@
+Luwak
+=========
+
+The Riak key/value store is extremely fast and reliable, but has limitations on the size of object that preclude its use for some applications.  For example, storing high definition still images or video is difficult or impossible.  Luwak is a service layer on Riak that provides a simple, file-oriented abstraction for enormous objects.
+
+Examples
+========
+
+Synchronous API
+--------
+
+Creating files and reading and writing to them.
+
+    {ok, File} = luwak_file:create(Riak, <<"filename">>, dict:new()),
+    {ok, _, File1} = luwak_io:put_range(Riak, File, 0, <<"myfilecontents">>),
+    IOList = luwak_io:get_range(Riak, File1, 0, 15),
+    
+Files have arbitrary metadata called 'attributes'.  They are stored as a dictionary along with your file and can store just about any kind of metadata you want to associate with your file.
+
+    {ok, File2} = luwak_file:set_attributes(Riak, File1, dict:store(mykey, myvalue, dict:new())),
+    
+You can also truncate a file.
+
+    {ok, File3} = luwak_io:truncate(Riak, File1, 0),
+    
+Or delete it altogether.
+
+    ok = luwak_file:delete(Riak, <<"filename">>),
+    
+You can test for the existence of a file.
+
+    {ok, false} = luwak_file:exists(Riak, <<"filename">>).
+    
+Asynchronous API
+--------
+
+Luwak can also operate asynchronously, allowing you to stream your reads and writes to and from files, allowing you to achieve much higher bandwidth than the synchronous API is capable of.
+
+    {ok, File} = luwak_file:create(Riak, <<"mystreamingfile">>, dict:new()),
+    PutStream = luwak_put_stream:start(Riak, File, 0, 1000),
+    luwak_put_stream:send(PutStream, <<"mymilkshake">>),
+    luwak_put_stream:send(PutStream, <<"bringsalltheboy">>),
+    luwak_put_stream:send(PutStream, <<"totheyard">>),
+    luwak_put_stream:close(PutStream),
+    {ok, File1} = luwak_put_stream:status(File),
+    
+When we call close, it forces the put stream to flush the contents of the file.  Check out the API docs for luwak_put_stream to get a feel for how the streaming write API operates.
+
+    GetStream = luwak_get_stream:start(Riak, File1, 0, 36),
+    {<<"mymilkshakebringsalltheboystotheyard">>, 0} = luwak_get_stream:recv(GetStream, 1000),
+    eos = luwak_get_stream(GetStream, 1000).
+
+Opening a get stream actually kicks off a riak map reduce job.  The job will recurse down the tree, following links until it gets to the actual data blocks.  It will then send all of these data blocks to the intermediary get stream process.  While it is possible to close a get stream before it is finished, there is no way currently to cancel the map reduce job in process.  So when you close a get stream before it is finished, the intermediary process exits and Erlang ought to drop the messages bound for it from the map reduce job.
+
+Operational Considerations
+=========
+
+Luwak is purely library code.  It does not have a supervisor tree nor does it need to be started like a tradition erlang application.  Luwak only requires that its code be on the load path of the client as well as on the load path of all of your Riak nodes.
+
+Let It Crash Design
+--------
+
+Luwak is designed according to Erlang's "let it crash" design philosophy.  Most of the publicly accessible functions in Luwak will intentionally crash in the case of a failure.  Luwak, however, will never corrupt your files.  If a write operation is aborted at any step before it returns to the user then no changes will have actually occurred to the file.  Likewise, concurrent reads can happen to a file during write operations.  If the reads start before the write is completed then they will simply read the previous version of the file.
+
+Internal Architecture
+=====================
+
+Luwak stores large objects in Riak as a metadata document, named for the object being stored, and a sequence of immutable block documents (henceforth referred to simple as 'blocks'), each of which is named with a hash of its contents.  All blocks for an object are the same size, except the last which may be shorter to accommodate objects of lengths not evenly divisible by the block size.  All hash operations use Skein 512.
+
+When a new object is passed to Luwak for storage in Riak, a new metadata document is created for it.  This metadata document uses riak's internal concept of links in order to link to a top-level document describing a merkle tree for the data contents of the object.
+
+		{<<"luwak_tld">>, <<"file001">>}: {
+      "tree_order": 100,
+			"block_size": 1000000,
+			"created": <timestamp>,
+			"modified": <timestamp>,
+			"ancestors": [<hashes>],
+		  "root": <<"38d0f91a99c57d189416439ce377ccdcd92639d0">>
+		}
+		
+			1. Example top level document
+			
+		{<<"luwak_node">>, <<"38d0f91a99c57d189416439ce377ccdcd92639d0">>} : {
+			"created": <timestamp>,
+			"children": [children]
+		}
+		
+		2. Example of a node document
+		
+		{<<"luwak_node">>, <<"46dfea8f78ddbebfc12f5ff822c7ae5bbbc4f638">>} : {
+		  "created": <timestamp>,
+			"data": <<bytes>>
+		}
+
+		3. Example data document
+
+Node and block documents are by definition immutable in luwak.  This is because their key is computed according to their contents.  Therefore, in order to mutate the contents of a file a new tree must be created.  As with most immutable data structures, this can be accomplished by only computing new nodes and trees for the parts which were actually changed, and keeping references to the subtrees which stay the same.
+
+This may seem slow, however it has several benefits:
+
+Breaks up the read - update - write cycle that is necessary with most KV stores.  Assuming that a node document's child hashes are already in memory, or a data document's data is already in memory, we need merely execute a create - write cycle, cutting a database round-trip out of the picture.  The only part of luwak that mutates is the top level document, and this is only to update the root tree hash.
+
+Efficient versioning and conflict detection of luwak objects.  Two documents which have many common blocks can share storage for those blocks.  Showing a diff via the interface then merely becomes an exercise in tree walking.  Conflict resolution is even easier.  When a conflict is detected between 2 TLD's in riak, the conflict resolution code must merely add the hash of the older trees to the ancestors list.
+
+Tree density is kept optimal.  Luwak trees are immutable and overwrite only, which means that a tree can only be appended to or overwritten.  This allows us to tune the B+Tree algorithm to keep luwak tree nodes completely full except for the very tail of the tree.  Optimally full tree nodes means that retrieval is guaranteed to only have to travel down log(n) / log(tree_order) levels before reaching the requested block.

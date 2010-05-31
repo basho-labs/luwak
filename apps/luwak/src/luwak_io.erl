@@ -4,9 +4,18 @@
 
 -include_lib("luwak/include/luwak.hrl").
 
+%% @spec put_range(Riak :: riak(), File :: luwak_file(), Start :: int(), Data :: binary()) ->
+%%        {ok, WrittenBlocks, NewFile}
+%% @doc Put range performs a synchronous write operation on the given luwak file.  The write
+%%      will start at the offset specified by Start and overwrite anything at that position
+%%      with the contents of Data.  Writes starting beyond the end of the file will occur at
+%%      the end of the file.  Luwak does not allow for gaps in a file.
 put_range(Riak, File, Start, Data) ->
   internal_put_range(Riak, File, Start, Data).
-  
+
+%% @spec get_range(Riak :: riak(), File :: luwak_file(), Start :: int(), Length :: int()) ->
+%%        iolist()
+%% @doc Returns an iolist() for the starting offset and length specified.
 get_range(Riak, File, Start, Length) ->
   Root = luwak_file:get_property(File, root),
   BlockSize = luwak_file:get_property(File, block_size),
@@ -16,7 +25,11 @@ get_range(Riak, File, Start, Length) ->
   ChopHead = Start rem BlockSize,
   ?debugFmt("chophead ~p length ~p~n", [ChopHead, Length]),
   retrieve_blocks(Riak, Blocks, ChopHead, Length).
-  
+
+%% @spec truncate(Riak :: riak(), File :: luwak_file(), Start :: int()) ->
+%%       {ok, NewFile}
+%% @doc Truncates a file to the specified offset.  All bytes beyond Start will no longer
+%%      be readable in NewFile.
 truncate(Riak, File, 0) ->
   luwak_file:update_root(Riak, File, undefined);
 truncate(Riak, File, Start) ->
@@ -30,6 +43,7 @@ truncate(Riak, File, Start) ->
 %%==============================================
 %% internal api
 %%==============================================
+%% @private
 no_tree_put_range(Riak, File, Start, Data) ->
   ?debugFmt("no_tree_put_range(Riak, File, ~p, ~p)~n", [Start, Data]),
   BlockSize = luwak_file:get_property(File, block_size),

@@ -6,8 +6,16 @@
 -include_lib("luwak/include/luwak.hrl").
 
 %% API
--export([start_link/4, start/4, send/2, ping/1, close/1, status/2]).
+-export([start_link/4, start/4, send/2, ping/1, close/1, status/2, flush/1]).
 
+%% @spec start_link(Riak :: riak(), File :: luwak_file(), Offset :: int(), TTL :: int()) ->
+%%        put_stream()
+%% @doc Starts a stream for writing at the specified offset.  The stream will remain
+%%      open for TTL milliseconds.  Every time the stream is written to or pinged
+%%      it will reset the TTL counter.  Therefore slow writers should set an appropriate
+%%      TTL or use ping/1 to keep a stream open.  This function links the stream process
+%%      to the calling process.
+%% @equiv start(Riak, File, Offset, TTL)
 start_link(Riak, File, Offset, TTL) ->
   Ref = make_ref(),
   BlockSize = luwak_file:get_property(File, block_size),
@@ -15,7 +23,7 @@ start_link(Riak, File, Offset, TTL) ->
       recv(Riak, #state{file=File,offset=Offset,blocksize=BlockSize,ref=Ref,ttl=TTL})
     end),
   {put_stream, Ref, Pid}.
-  
+
 start(Riak, File, Offset, TTL) ->
   Ref = make_ref(),
   BlockSize = luwak_file:get_property(File, block_size),
@@ -24,15 +32,28 @@ start(Riak, File, Offset, TTL) ->
     end),
   {put_stream, Ref, Pid}.
 
+%% @doc Sends the given binary to the stream for writing.  The put stream does its
+%%      own internal buffering for performance reasons, so this is equivalent to
+%%      writing to a regular file on a local filesystem.  If you want guarantees that
+%%      your write is actually written then you need to call flush/1 on the put stream.
 send({put_stream, Ref, Pid}, Data) ->
   Pid ! {put, Ref, Data}.
 
+%% @doc Pings the stream, resetting the TTL timer.  Use this if you have a slow writer
+%%      but don't necessarily want to extend the TTL time.
 ping({put_stream, Ref, Pid}) ->
   Pid ! {ping, Ref}.
 
+%% @doc Signals the stream to close.  The stream will immediately flush its buffers to
+%%      the file and will stay open for TTL milliseconds waiting for one last status/2 call.
 close({put_stream, Ref, Pid}) ->
   Pid ! {close, Ref}.
-  
+
+%% @spec status(Stream :: put_stream(), Timeout) -> {ok, File} | {error, Reason}
+%% @doc Gets the current filehandle on which the stream is operating.  Can be called at
+%%      any time during the life of a stream, including after a call to close/1.  The
+%%      returned file is not guaranteed to reflect the latest calls to send/2, since
+%%      status/2 does not cause a flush to occur.
 status({put_stream, Ref, Pid}, Timeout) ->
   Pid ! {status, self(), Ref},
   MonitorRef = erlang:monitor(process, Pid),
@@ -46,9 +67,12 @@ status({put_stream, Ref, Pid}, Timeout) ->
     {error, timeout}
   end.
 
-recv(_, close) ->
-  ok;
-recv(Riak, {flushed, State = #state{file=File,ttl=TTL}}) ->
+%% @doc Causes the stream to immediately flush its buffers and commit any pending writes
+%%      to the file.  Equivalent to an fsync call in most other filesystem API's.
+flush({put_stream, Ref, Pid}) ->
+  Pid ! {flush, Ref}.
+
+recv(Riak, {closed, State = #state{file=File,ttl=TTL}}) ->
   receive
     {status, Client, Ref} -> Client ! {stream, Ref, File}
   after TTL ->
@@ -59,7 +83,8 @@ recv(Riak, State = #state{ref=Ref,ttl=TTL,buffer=Buffer,file=File}) ->
     receive
       {put, Ref, Data} -> handle_data(Riak, State#state{buffer=[Data|Buffer],buffersize=iolist_size([Data|Buffer])});
       {ping, Ref} -> State;
-      {close, Ref} -> flush(Riak, State);
+      {flush, Ref} -> flush(Riak, State);
+      {close, Ref} -> close(Riak, State);
       {status, Client, Ref} ->
         Client ! {stream, Ref, File},
         State
@@ -98,6 +123,10 @@ flush(Riak, State=#state{offset=Offset,file=File,written=Written}) when length(W
   ?debugFmt("B flush(Riak, ~p)~n", [State]),
   OriginalOffset = Offset - luwak_tree_utils:blocklist_length(Written),
   {ok, NewFile} = luwak_tree:update(Riak, File, OriginalOffset, Written),
-  {flushed, State#state{file=NewFile}};
+  State#state{file=NewFile};
 flush(Riak, State) ->
-  {flushed, State}.
+  State.
+  
+close(Riak, State) ->
+  {closed, flush(Riak, State)}.
+  
