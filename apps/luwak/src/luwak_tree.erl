@@ -1,6 +1,6 @@
 -module(luwak_tree).
 
--export([update/4, get/2, block_at/3, visualize_tree/2, get_range/6, truncate/7]).
+-export([update/4, get/2, block_at/3, visualize_tree/2, get_range/6, get_range/7, truncate/7]).
 
 -include_lib("luwak/include/luwak.hrl").
 
@@ -32,25 +32,33 @@ update(Riak, File, StartingPos, Blocks) ->
       luwak_file:update_root(Riak, File, NewRootName)
   end.
 
-get_range(_, _, _, _, _, 0) ->
+get_range(Riak, Parent, BlockSize, TreeStart, Start, End) ->
+  Fun = fun({Name,Length}, _) when Length =< BlockSize ->
+      ?debugFmt("A foldrflatmap({~p,~p}, _)~n", [Name, Length]),
+      {[{Name,BlockSize}], 0};
+    ({Name,NodeLength}, AccLength) ->
+      ?debugFmt("B foldrflatmap({~p,~p}, ~p)~n", [Name, NodeLength, AccLength]),
+      {ok, Node} = get(Riak, Name),
+      Blocks = get_range(Riak, Node, BlockSize, AccLength, Start, End),
+      {Blocks, AccLength+NodeLength}
+    end,
+  get_range(Riak, Fun, Parent, BlockSize, TreeStart, Start, End).
+
+get_range(_, _, _, _, _, _, 0) ->
   [];
-get_range(Riak, Parent = #n{children=[]}, BlockSize, TreeStart, Start, End) ->
+get_range(Riak, Fun, Parent = #n{children=[]}, BlockSize, TreeStart, Start, End) ->
   ?debugMsg("D get_range(_, _, _, _, _, _)~n"),
   [];
 %% children are individual blocks
 %% we can do this because trees are guaranteed to be full
-get_range(Riak, Parent = #n{children=[{_,BlockSize}|_]=Children}, BlockSize, TreeStart, Start, End) ->
+get_range(Riak, Fun, Parent = #n{children=[{_,BlockSize}|_]=Children}, BlockSize, TreeStart, Start, End) ->
   ?debugFmt("A get_range(Riak, ~p, ~p, ~p, ~p, ~p)~n", [Parent, BlockSize, TreeStart, Start, End]),
-  {Nodes,_} = read_split(Children, TreeStart, Start, End);
-get_range(Riak, Parent = #n{children=Children}, BlockSize, TreeStart, Start, End) ->
+  {Nodes, Length} = read_split(Children, TreeStart, Start, End),
+  luwak_tree_utils:foldrflatmap(Fun, Nodes, Length);
+get_range(Riak, Fun, Parent = #n{children=Children}, BlockSize, TreeStart, Start, End) ->
   ?debugFmt("B get_range(Riak, ~p, ~p, ~p, ~p, ~p)~n", [Parent, BlockSize, TreeStart, Start, End]),
   {Nodes, Length} = read_split(Children, TreeStart, Start, End),
-  luwak_tree_utils:foldrflatmap(fun({Name,NodeLength}, AccLength) ->
-      ?debugFmt("foldrflatmap({~p,~p}, ~p)~n", [Name, NodeLength, AccLength]),
-      {ok, Node} = get(Riak, Name),
-      {Blocks,_} = get_range(Riak, Node, BlockSize, AccLength, Start, End),
-      {Blocks, AccLength+NodeLength}
-    end, Nodes, Length).
+  luwak_tree_utils:foldrflatmap(Fun, Nodes, Length).
 
 truncate(_Riak, File, _Start, undefined, _Order, _NodeOffset, _BlockSize) ->
   ?debugFmt("A truncate(Riak, File, ~p, undefined, ~p, ~p, ~p)~n", [_Start, _Order, _NodeOffset, _BlockSize]),
@@ -157,12 +165,16 @@ subtree_update(Riak, File, Order, InsertPos, TreePos, Parent = #n{}, Blocks) ->
 
 list_into_nodes(Riak, Children, Order, StartingPos) ->
   ?debugFmt("list_into_nodes(Riak, ~p, ~p, ~p)~n", [Children, Order, StartingPos]),
-  map_sublist(fun(Sublist) ->
+  Written = map_sublist(fun(Sublist) ->
       Length = luwak_tree_utils:blocklist_length(Sublist),
       {ok, Obj} = create_node(Riak, Sublist),
       {riak_object:key(Obj), Length}
-    end, Order, Children).
-
+    end, Order, Children),
+  if
+    length(Written) > Order -> list_into_nodes(Riak, Written, Order, StartingPos);
+    true -> Written
+  end.
+ 
 
 %% @spec block_at(Riak::riak(), File::luwak_file(), Pos::int()) ->
 %%          {ok, BlockObj} | {error, Reason}

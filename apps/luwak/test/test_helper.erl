@@ -18,9 +18,10 @@ start_riak() ->
   % application:set_env(riak_core, ring_state_dir, Dir),
   application:set_env(riak_kv, storage_backend, riak_kv_cache_backend),
   load_and_start_apps([kernel, stdlib, sasl, crypto, webmachine,
-    riak_core, riak_kv]).
+    riak_core, riak_kv, luke]).
     
 stop_riak() ->
+  application:stop(luke),
   application:stop(riak_kv),
   application:stop(riak_core).
   
