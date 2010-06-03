@@ -67,7 +67,7 @@ get_attributes(Obj) ->
 %% @doc Checks for the existence of the named file.
 exists(Riak, Name) ->
   case Riak:get(?O_BUCKET, Name, 2) of
-    {ok, Obj} -> {ok, true};
+    {ok, _Obj} -> {ok, true};
     {error, notfound} -> {ok, false};
     Err -> Err
   end.
@@ -118,11 +118,11 @@ get_property(Obj, PropName) ->
 
 %% @private
 update_root(Riak, Obj, NewRoot) ->
-  Values = riak_object:get_value(Obj),
   ObjVal1 = riak_object:get_value(Obj),
   OldRoot = proplists:get_value(root, ObjVal1),
   Ancestors = proplists:get_value(ancestors, ObjVal1),
-  ObjVal2 = lists:keyreplace(ancestors, 1, ObjVal1, {ancestors, [OldRoot|Ancestors]}),
+  ObjVal2 = lists:keyreplace(ancestors, 1, ObjVal1,
+                             {ancestors, [OldRoot|Ancestors]}),
   ObjVal3 = lists:keyreplace(root, 1, ObjVal2, {root, NewRoot}),
   Obj2 = riak_object:apply_updates(riak_object:update_value(Obj, ObjVal3)),
   ok = Riak:put(Obj2, 2),
@@ -132,9 +132,9 @@ update_root(Riak, Obj, NewRoot) ->
 update_checksum(Riak, Obj, ChecksumFun) ->
   case get_property(Obj, checksumming) of
     true ->
-      Values = riak_object:get_value(Obj),
       ObjVal1 = riak_object:get_value(Obj),
-      ObjVal2 = lists:keyreplace(checksum, 1, ObjVal1, {checksum, {sha1, ChecksumFun()}}),
+      ObjVal2 = lists:keyreplace(checksum, 1, ObjVal1, 
+                                 {checksum, {sha1, ChecksumFun()}}),
       Obj2 = riak_object:apply_updates(riak_object:update_value(Obj, ObjVal2)),
       ok = Riak:put(Obj2, 2),
       {ok, Obj2};

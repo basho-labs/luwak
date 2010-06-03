@@ -47,11 +47,10 @@ truncate(Riak, File, Start) ->
 no_tree_put_range(Riak, File, Start, Data) ->
   ?debugFmt("no_tree_put_range(Riak, File, ~p, ~p)~n", [Start, Data]),
   BlockSize = luwak_file:get_property(File, block_size),
-  BlockAlignedStart = Start - (Start rem BlockSize),
   case (Start rem BlockSize) of
     0 -> write_blocks(Riak, File, undefined, Start, Data, BlockSize, []);
-    BlockOffset ->
-      ?debugFmt("blockoffset ~p~n", [BlockOffset]),
+    _BlockOffset ->
+      ?debugFmt("blockoffset ~p~n", [_BlockOffset]),
       {ok, Block} = luwak_tree:block_at(Riak, File, Start),
       write_blocks(Riak, File, Block, Start, Data, BlockSize, [])
   end.
@@ -65,7 +64,7 @@ internal_put_range(Riak, File, Start, Data) ->
       {ok, NewFile} = luwak_tree:update(Riak, File, BlockAlignedStart, Written),
       {ok, NewFile1} = luwak_file:update_checksum(Riak, NewFile, fun() -> crypto:sha(Data) end),
       {ok, Written, NewFile1};
-    BlockOffset -> 
+    _BlockOffset -> 
       {ok, Block} = luwak_tree:block_at(Riak, File, Start),
       {ok, Written} = write_blocks(Riak, File, Block, Start, Data, BlockSize, []),
       {ok, NewFile} = luwak_tree:update(Riak, File, BlockAlignedStart, Written),
@@ -73,7 +72,7 @@ internal_put_range(Riak, File, Start, Data) ->
       {ok, Written, NewFile1}
   end.
 
-write_blocks(_, _, _, Start, <<>>, _, Written) when is_list(Written) ->
+write_blocks(_, _, _, _Start, <<>>, _, Written) when is_list(Written) ->
   ?debugFmt("A write_blocks(_, _, _, ~p, <<>>, _, ~p) ~n", [Start, Written]),
   {ok, lists:reverse(Written)};
 %% start aligned sub-block write
@@ -100,7 +99,7 @@ write_blocks(Riak, File, undefined, Start, Data, BlockSize, Written) when is_lis
   {ok, Block} = luwak_block:create(Riak, Slice),
   write_blocks(Riak, File, undefined, Start+BlockSize, Tail, BlockSize, [{luwak_block:name(Block),BlockSize}|Written]);
 %% we are doing a sub-block write
-write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written) when is_list(Written), byte_size(Data) < BlockSize ->
+write_blocks(Riak, _File, PartialStartBlock, Start, Data, BlockSize, Written) when is_list(Written), byte_size(Data) < BlockSize ->
   ?debugFmt("D write_blocks(Riak, File, ~p, ~p, ~p, ~p, ~p) ~n", [PartialStartBlock, Start, Data, BlockSize, Written]),
   DataSize = byte_size(Data),
   PartialStart = Start rem BlockSize,
@@ -132,7 +131,7 @@ write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written) whe
 retrieve_blocks(Riak, Blocks, ChopHead, Length) ->
   retrieve_blocks(Riak, Blocks, ChopHead, Length, []).
   
-retrieve_blocks(Riak, [], _, _, Acc) ->
+retrieve_blocks(_Riak, [], _, _, Acc) ->
   lists:reverse(Acc);
 retrieve_blocks(Riak, [{Name,_}], _, 0, Acc) ->
   {ok, Block} = luwak_tree:get(Riak, Name),

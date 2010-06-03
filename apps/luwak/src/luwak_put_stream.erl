@@ -74,7 +74,7 @@ status({put_stream, Ref, Pid}, Timeout) ->
 flush({put_stream, Ref, Pid}) ->
   Pid ! {flush, Ref}.
 
-recv(Riak, {closed, State = #state{file=File,ttl=TTL}}) ->
+recv(_Riak, {closed, _State = #state{file=File,ttl=TTL}}) ->
   receive
     {status, Client, Ref} -> Client ! {stream, Ref, File}
   after TTL ->
@@ -83,7 +83,7 @@ recv(Riak, {closed, State = #state{file=File,ttl=TTL}}) ->
 recv(Riak, State = #state{ref=Ref,ttl=TTL,buffer=Buffer,file=File}) ->
   recv(Riak,
     receive
-      {put, Ref, Data} -> handle_data(Riak, State#state{buffer=[Data|Buffer],buffersize=iolist_size([Data|Buffer])});
+      {put, Ref, Data} -> handle_data(Riak,State#state{buffer=[Data|Buffer],buffersize=iolist_size([Data|Buffer])});
       {ping, Ref} -> State;
       {flush, Ref} -> flush(Riak, State);
       {close, Ref} -> close(Riak, State);
@@ -113,7 +113,7 @@ update_tree(Riak, State=#state{offset=Offset,file=File,written=Written}) when le
   OriginalOffset = Offset - luwak_tree_utils:blocklist_length(Written),
   {ok, NewFile} = luwak_tree:update(Riak, File, OriginalOffset, Written),
   update_checksum(Riak, State#state{file=NewFile});
-update_tree(Riak, State) ->
+update_tree(_Riak, State) ->
   State.
 
 flush(Riak, State=#state{offset=Offset,file=File,buffer=Buffer,written=Written}) when length(Buffer) > 0 ->
@@ -127,7 +127,7 @@ flush(Riak, State=#state{offset=Offset,file=File,written=Written}) when length(W
   OriginalOffset = Offset - luwak_tree_utils:blocklist_length(Written),
   {ok, NewFile} = luwak_tree:update(Riak, File, OriginalOffset, Written),
   update_checksum(Riak, State#state{file=NewFile});
-flush(Riak, State) ->
+flush(_Riak, State) ->
   State.
 
 checksum(_, State=#state{checksumming=false}) ->

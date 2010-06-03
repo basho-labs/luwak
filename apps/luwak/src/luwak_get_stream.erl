@@ -26,7 +26,7 @@ start(Riak, File, Start, Length) ->
 %%      delivered, the stream ends, or until Timeout milliseconds have elapsed.  Whichever
 %%      occurs first.  The data blocks are returned as a tuple with the data binary and
 %%      its offset from the start of the file.
-recv({get_stream, Ref, Pid}, Timeout) ->
+recv({get_stream, Ref, _Pid}, Timeout) ->
   receive
     {get, Ref, Data, Offset} -> {Data, Offset};
     {get, Ref, eos} -> eos;
@@ -42,7 +42,7 @@ close({get_stream, Ref, Pid}) ->
   
 nonblock_mr(Riak,Query,MapInput) ->
   case Riak:mapred_stream(Query,self(),60000) of
-      {ok, {ReqId, FlowPid}} ->
+      {ok, {_ReqId, FlowPid}} ->
           luke_flow:add_inputs(FlowPid, MapInput),
           luke_flow:finish_inputs(FlowPid);
       Error ->
@@ -104,29 +104,27 @@ map(Parent=#n{}, TreeOffset, Map=#map{riak=Riak,offset=Offset,endoffset=EndOffse
       end)
   end,
   [];
-map(Block, TreeOffset, Map=#map{riak=Riak,offset=Offset,endoffset=EndOffset,ref=Ref,pid=Pid,blocksize=BlockSize}) when TreeOffset < Offset ->
+map(Block, TreeOffset, _Map=#map{offset=Offset,ref=Ref,pid=Pid})
+ when TreeOffset < Offset ->
   ?debugFmt("B map(~p, ~p, ~p)~n", [Block, TreeOffset, Map]),
   PartialSize = Offset - TreeOffset,
   <<_:PartialSize/binary, Tail/binary>> = luwak_block:data(Block),
   ?debugFmt("sending ~p~n", [{get, Ref, Tail, Offset}]),
   Pid ! {get, Ref, Tail, Offset},
   [];
-map(Block, TreeOffset, Map=#map{riak=Riak,offset=Offset,endoffset=EndOffset,ref=Ref,pid=Pid,blocksize=BlockSize}) when BlockSize >= EndOffset - TreeOffset ->
+map(Block, TreeOffset,
+    _Map=#map{endoffset=EndOffset,ref=Ref,pid=Pid,blocksize=BlockSize})
+ when BlockSize >= EndOffset - TreeOffset ->
   ?debugFmt("C map(~p, ~p, ~p)~n", [Block, TreeOffset, Map]),
   PartialSize = EndOffset - TreeOffset,
   <<PartialData:PartialSize/binary, _/binary>> = luwak_block:data(Block),
   ?debugFmt("sending ~p~n", [{get, Ref, PartialData, TreeOffset}]),
   Pid ! {get, Ref, PartialData, TreeOffset},
   [];
-map(Block, TreeOffset, Map=#map{riak=Riak,offset=Offset,endoffset=EndOffset,ref=Ref,pid=Pid,blocksize=BlockSize}) ->
+map(Block, TreeOffset, _Map=#map{ref=Ref,pid=Pid}) ->
   ?debugFmt("D map(~p, ~p, ~p)~n", [Block, TreeOffset, Map]),
   Data = luwak_block:data(Block),
   ?debugFmt("sending ~p~n", [{get, Ref, Data, TreeOffset}]),
   Pid ! {get, Ref, Data, TreeOffset},
   [].
   
-ident_fun() ->
-  fun({Name,Length}, NodeOffset) ->
-    {[{Name,Length}], NodeOffset}
-  end.
-
