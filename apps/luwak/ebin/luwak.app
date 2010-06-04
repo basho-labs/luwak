@@ -4,7 +4,6 @@
   {vsn, "1"},
   {modules, [
              luwak_app,
-             luwak_sup,
              luwak_io,
              luwak_block,
              luwak_file,
