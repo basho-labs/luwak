@@ -6,7 +6,7 @@
 
 -record(map, {riak,blocksize,ref,pid,offset,endoffset}).
 
--include_lib("luwak/include/luwak.hrl").
+-include_lib("luwak.hrl").
 
 
 %% @spec start(Riak :: riak(), File :: luwak_file(),

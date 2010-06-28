@@ -1,6 +1,6 @@
 -module(luwak_block).
 
--include_lib("luwak/include/luwak.hrl").
+-include_lib("luwak.hrl").
 
 -export([create/2,
          data/1,
