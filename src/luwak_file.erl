@@ -57,8 +57,7 @@ create(Riak, Name, Properties, Attributes) when is_binary(Name) ->
              {root, undefined}
             ],
     Obj = riak_object:new(?O_BUCKET, Name, Value),
-    ok = Riak:put(Obj, 2),
-    {ok, Obj}.
+    Riak:put(Obj, 2, 2, ?TIMEOUT_DEFAULT, [{returnbody, true}]).
 
 %% @spec set_attributes(Riak :: riak(), Obj :: luwak_file(),
 %%                      Attributes :: dict())
@@ -67,9 +66,8 @@ create(Riak, Name, Properties, Attributes) when is_binary(Name) ->
 set_attributes(Riak, Obj, Attributes) ->
     Value = lists:keyreplace(attributes, 1, riak_object:get_value(Obj),
                              {attributes, Attributes}),
-    Obj2 = riak_object:apply_updates(riak_object:update_value(Obj, Value)),
-    ok = Riak:put(Obj2, 2),
-    {ok, Obj2}.
+    Obj2 = riak_object:update_value(Obj, Value),
+    Riak:put(Obj2, 2, 2, ?TIMEOUT_DEFAULT, [{returnbody, true}]).
   
 %% @spec get_attributes(Obj :: luwak_file()) -> dict()
 %% @doc Gets the attribute dictionary from the file handle.
@@ -140,9 +138,8 @@ update_root(Riak, Obj, NewRoot) ->
     ObjVal2 = lists:keyreplace(ancestors, 1, ObjVal1,
                                {ancestors, [OldRoot|Ancestors]}),
     ObjVal3 = lists:keyreplace(root, 1, ObjVal2, {root, NewRoot}),
-    Obj2 = riak_object:apply_updates(riak_object:update_value(Obj, ObjVal3)),
-    ok = Riak:put(Obj2, 2),
-    {ok, Obj2}.
+    Obj2 = riak_object:update_value(Obj, ObjVal3),
+    Riak:put(Obj2, 2, 2, ?TIMEOUT_DEFAULT, [{returnbody, true}]).
 
 %% @private
 update_checksum(Riak, Obj, ChecksumFun) ->
@@ -151,10 +148,8 @@ update_checksum(Riak, Obj, ChecksumFun) ->
             ObjVal1 = riak_object:get_value(Obj),
             ObjVal2 = lists:keyreplace(checksum, 1, ObjVal1, 
                                        {checksum, {sha1, ChecksumFun()}}),
-            Obj2 = riak_object:apply_updates(riak_object:update_value(Obj,
-                                                                      ObjVal2)),
-            ok = Riak:put(Obj2, 2),
-            {ok, Obj2};
+            Obj2 = riak_object:update_value(Obj, ObjVal2),
+            Riak:put(Obj2, 2, 2, ?TIMEOUT_DEFAULT, [{retunbody, true}]);
         _ ->
             {ok, Obj}
   end.

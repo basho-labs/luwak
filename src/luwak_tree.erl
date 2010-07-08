@@ -310,7 +310,7 @@ create_node(Riak, Children) ->
     N = #n{created=now(),children=Children},
     Name = skerl:hexhash(?HASH_LEN, term_to_binary(Children)),
     Obj = riak_object:new(?N_BUCKET, Name, N),
-    {Riak:put(Obj, 2), Obj}.
+    Riak:put(Obj, 2, 2, ?TIMEOUT_DEFAULT, [{returnbody, true}]).
 
 truncate(List) when is_list(List) ->
     lists:map(fun({Data,Length}) -> {truncate(Data),Length} end, List);

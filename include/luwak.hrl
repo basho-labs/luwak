@@ -6,6 +6,8 @@
 -define(BLOCK_DEFAULT, 1000000).
 -define(HASH_LEN, 512).
 
+-define(TIMEOUT_DEFAULT, 60000).
+
 -record(split, {head=[], midhead=[], middle=[], midtail=[], tail=[]}).
 
 -ifndef(EUNIT_HRL).
