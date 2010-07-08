@@ -91,7 +91,7 @@ internal_put_range(Riak, File, Start, Data) ->
     end.
 
 write_blocks(_, _, _, _Start, <<>>, _, Written) when is_list(Written) ->
-    ?debugFmt("A write_blocks(_, _, _, ~p, <<>>, _, ~p) ~n", [Start, Written]),
+    ?debugFmt("A write_blocks(_, _, _, ~p, <<>>, _, ~p) ~n", [_Start, Written]),
     {ok, lists:reverse(Written)};
 %% start aligned sub-block write
 write_blocks(Riak, File, undefined, Start, Data, BlockSize, Written)

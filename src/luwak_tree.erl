@@ -65,13 +65,13 @@ get_range(_Riak, _Fun, _Parent = #n{children=[]}, _BlockSize, _TreeStart,
 get_range(_Riak, Fun, _Parent = #n{children=[{_,BlockSize}|_]=Children},
           BlockSize, TreeStart, Start, End) ->
     ?debugFmt("A get_range(Riak, ~p, ~p, ~p, ~p, ~p)~n",
-              [Parent, BlockSize, TreeStart, Start, End]),
+              [_Parent, BlockSize, TreeStart, Start, End]),
     {Nodes, Length} = read_split(Children, TreeStart, Start, End),
     luwak_tree_utils:foldrflatmap(Fun, Nodes, Length);
 get_range(_Riak, Fun, _Parent = #n{children=Children}, _BlockSize, TreeStart,
           Start, End) ->
     ?debugFmt("B get_range(Riak, ~p, ~p, ~p, ~p, ~p)~n",
-              [Parent, BlockSize, TreeStart, Start, End]),
+              [_Parent, _BlockSize, TreeStart, Start, End]),
     {Nodes, Length} = read_split(Children, TreeStart, Start, End),
     luwak_tree_utils:foldrflatmap(Fun, Nodes, Length).
 
@@ -82,7 +82,7 @@ truncate(_Riak, _File, _Start, undefined, _Order, _NodeOffset, _BlockSize) ->
 truncate(Riak, File, Start, _Parent=#n{children=Children},
          Order, NodeOffset, BlockSize) ->
     ?debugFmt("B truncate(Riak, File, ~p, ~p, ~p, ~p, ~p)~n",
-              [Start,Parent,Order,NodeOffset,BlockSize]),
+              [Start,_Parent,Order,NodeOffset,BlockSize]),
     {Keep, {Recurse,_RecLength}, _} = which_child(Children, NodeOffset,
                                                   Start, []),
     KeepLength = luwak_tree_utils:blocklist_length(Keep),
@@ -95,7 +95,7 @@ truncate(Riak, File, Start, _Parent=#n{children=Children},
           luwak_tree_utils:blocklist_length(NewNodeVal#n.children)}};
 truncate(Riak, _File, Start, Block, _Order, NodeOffset, _BlockSize) ->
     ?debugFmt("C truncate(Riak, File, ~p, ~p, ~p, ~p, ~p)~n",
-              [Start, Block, _Order, NodeOffset, BlockSize]),
+              [Start, Block, _Order, NodeOffset, _BlockSize]),
     Data = luwak_block:data(Block),
     ByteOffset = Start - NodeOffset,
     <<Retain:ByteOffset/binary, _/binary>> = Data,
@@ -277,12 +277,12 @@ which_child([E={_ChildName,Length}], NodeOffset, Pos, Acc)
     ?debugFmt("A which_child(~p, ~p, ~p)~n", [E, NodeOffset, Pos]),
     {lists:reverse([E|Acc]), undefined, []};
 which_child([E], _NodeOffset, _Pos, Acc) ->
-    ?debugFmt("B which_child(~p, ~p, ~p)~n", [E, NodeOffset, Pos]),
+    ?debugFmt("B which_child(~p, ~p, ~p)~n", [E, _NodeOffset, _Pos]),
     {lists:reverse(Acc), E, []};
 which_child([E={_ChildName,Length}|Tail], NodeOffset, Pos, Acc)
   when Pos >= NodeOffset + Length ->
     ?debugFmt("C which_child(~p, ~p, ~p)~n",
-              [[{ChildName,Length}|Tail], NodeOffset, Pos]),
+              [[{_ChildName,Length}|Tail], NodeOffset, Pos]),
     which_child(Tail, NodeOffset+Length, Pos, [E|Acc]);
 which_child([{ChildName,Length}|Tail], NodeOffset, Pos, Acc)
   when Pos < NodeOffset + Length ->

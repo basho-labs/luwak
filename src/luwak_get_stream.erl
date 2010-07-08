@@ -118,7 +118,7 @@ map(Parent=#n{}, TreeOffset,
     [];
 map(Block, TreeOffset, _Map=#map{offset=Offset,ref=Ref,pid=Pid})
   when TreeOffset < Offset ->
-    ?debugFmt("B map(~p, ~p, ~p)~n", [Block, TreeOffset, Map]),
+    ?debugFmt("B map(~p, ~p, ~p)~n", [Block, TreeOffset, _Map]),
     PartialSize = Offset - TreeOffset,
     <<_:PartialSize/binary, Tail/binary>> = luwak_block:data(Block),
     ?debugFmt("sending ~p~n", [{get, Ref, Tail, Offset}]),
@@ -127,14 +127,14 @@ map(Block, TreeOffset, _Map=#map{offset=Offset,ref=Ref,pid=Pid})
 map(Block, TreeOffset,
     _Map=#map{endoffset=EndOffset,ref=Ref,pid=Pid,blocksize=BlockSize})
   when BlockSize >= EndOffset - TreeOffset ->
-    ?debugFmt("C map(~p, ~p, ~p)~n", [Block, TreeOffset, Map]),
+    ?debugFmt("C map(~p, ~p, ~p)~n", [Block, TreeOffset, _Map]),
     PartialSize = EndOffset - TreeOffset,
     <<PartialData:PartialSize/binary, _/binary>> = luwak_block:data(Block),
     ?debugFmt("sending ~p~n", [{get, Ref, PartialData, TreeOffset}]),
     Pid ! {get, Ref, PartialData, TreeOffset},
     [];
 map(Block, TreeOffset, _Map=#map{ref=Ref,pid=Pid}) ->
-    ?debugFmt("D map(~p, ~p, ~p)~n", [Block, TreeOffset, Map]),
+    ?debugFmt("D map(~p, ~p, ~p)~n", [Block, TreeOffset, _Map]),
     Data = luwak_block:data(Block),
     ?debugFmt("sending ~p~n", [{get, Ref, Data, TreeOffset}]),
     Pid ! {get, Ref, Data, TreeOffset},
