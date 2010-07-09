@@ -149,7 +149,7 @@ update_checksum(Riak, Obj, ChecksumFun) ->
             ObjVal2 = lists:keyreplace(checksum, 1, ObjVal1, 
                                        {checksum, {sha1, ChecksumFun()}}),
             Obj2 = riak_object:update_value(Obj, ObjVal2),
-            Riak:put(Obj2, 2, 2, ?TIMEOUT_DEFAULT, [{retunbody, true}]);
+            Riak:put(Obj2, 2, 2, ?TIMEOUT_DEFAULT, [{returnbody, true}]);
         _ ->
             {ok, Obj}
   end.
