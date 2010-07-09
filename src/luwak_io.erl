@@ -128,7 +128,7 @@ write_blocks(Riak, File, undefined, Start, Data, BlockSize, Written)
     write_blocks(Riak, File, undefined, Start+BlockSize, Tail, BlockSize,
                  [{luwak_block:name(Block),BlockSize}|Written]);
 %% we are doing a sub-block write on a full block
-write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written)
+write_blocks(Riak, _File, PartialStartBlock, Start, Data, BlockSize, Written)
   when is_list(Written), byte_size(Data) < BlockSize,
        byte_size(PartialStartBlock) == BlockSize ->
     ?debugFmt("D write_blocks(Riak, File, ~p, ~p, ~p, ~p, ~p) ~n",
@@ -143,7 +143,7 @@ write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written)
                          byte_size(BlockData)}|
                         Written])};
 %% sub block write on a partial write
-write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written)
+write_blocks(Riak, _File, PartialStartBlock, Start, Data, BlockSize, Written)
   when is_list(Written), byte_size(Data) < BlockSize ->
   PartialStartData = luwak_block:data(PartialStartBlock),
   DataSize = byte_size(Data),
