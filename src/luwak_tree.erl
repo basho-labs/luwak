@@ -20,7 +20,7 @@ update(Riak, File, StartingPos, Blocks) ->
     BlockSize = luwak_file:get_property(File, block_size),
     if
         StartingPos rem BlockSize =/= 0 ->
-            throw({error, "StartingPos must be a multiple of blocksize"});
+            throw({error, ?fmt("StartingPos (~p) must be a multiple of blocksize", [StartingPos])});
         true ->
             ok
     end,

@@ -172,11 +172,12 @@ flush(Riak, State=#state{offset=Offset,file=File,buffer=Buffer,written=Written})
                                            buffer=[],
                                            buffersize=0,
                                            written=Written++Written1}));
-flush(Riak, State=#state{offset=Offset,file=File,written=Written})
+flush(Riak, State=#state{offset=Offset,file=File,written=Written,blocksize=BlockSize})
   when length(Written) > 0 ->
     ?debugFmt("B flush(Riak, ~p)~n", [State]),
     OriginalOffset = Offset - luwak_tree_utils:blocklist_length(Written),
-    {ok, NewFile} = luwak_tree:update(Riak, File, OriginalOffset, Written),
+    OriginalOffsetAligned = OriginalOffset - OriginalOffset rem BlockSize,  
+    {ok, NewFile} = luwak_tree:update(Riak, File, OriginalOffsetAligned, Written),
     update_checksum(Riak, State#state{file=NewFile});
 flush(_Riak, State) ->
     State.

@@ -62,3 +62,23 @@ truncate_test() ->
       Blocks = luwak_io:get_range(Riak, File2, 0, 7),
       ?assertEqual(<<"wontyou">>, iolist_to_binary(Blocks))
     end).
+
+sub_block_partial_write_test() ->
+  test_helper:riak_test(fun(Riak) ->
+      {ok, File} = luwak_file:create(Riak, <<"basho">>, [{block_size,1000}], dict:new()),
+      S = luwak_put_stream:start_link(Riak, File, 0, 1000),
+      B1 = crypto:rand_bytes(33),
+      luwak_put_stream:send(S, B1),
+      luwak_put_stream:close(S),
+      timer:sleep(100),
+      {ok, File2} = luwak_file:get(Riak, <<"basho">>),
+      S1 = luwak_put_stream:start_link(Riak, File2, 33, 1000),
+      B2 = crypto:rand_bytes(33),
+      luwak_put_stream:send(S1, B2),
+      luwak_put_stream:close(S1),
+      timer:sleep(100),
+      {ok, File3} = luwak_file:get(Riak, <<"basho">>),
+      Blocks = luwak_io:get_range(Riak, File3, 0, 66),
+      ?debugFmt("blocks ~p~n", [Blocks]),
+      ?assertEqual(<<B1/binary, B2/binary>>, iolist_to_binary(Blocks))
+    end).

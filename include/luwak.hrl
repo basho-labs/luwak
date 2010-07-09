@@ -8,6 +8,8 @@
 
 -define(TIMEOUT_DEFAULT, 60000).
 
+-define(fmt(S, As), lists:flatten(io_lib:format(S, As))).
+
 -record(split, {head=[], midhead=[], middle=[], midtail=[], tail=[]}).
 
 -ifndef(EUNIT_HRL).

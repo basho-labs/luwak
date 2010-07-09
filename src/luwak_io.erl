@@ -127,9 +127,10 @@ write_blocks(Riak, File, undefined, Start, Data, BlockSize, Written)
     {ok, Block} = luwak_block:create(Riak, Slice),
     write_blocks(Riak, File, undefined, Start+BlockSize, Tail, BlockSize,
                  [{luwak_block:name(Block),BlockSize}|Written]);
-%% we are doing a sub-block write
-write_blocks(Riak, _File, PartialStartBlock, Start, Data, BlockSize, Written)
-  when is_list(Written), byte_size(Data) < BlockSize ->
+%% we are doing a sub-block write on a full block
+write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written)
+  when is_list(Written), byte_size(Data) < BlockSize,
+       byte_size(PartialStartBlock) == BlockSize ->
     ?debugFmt("D write_blocks(Riak, File, ~p, ~p, ~p, ~p, ~p) ~n",
               [PartialStartBlock, Start, Data, BlockSize, Written]),
     DataSize = byte_size(Data),
@@ -141,6 +142,30 @@ write_blocks(Riak, _File, PartialStartBlock, Start, Data, BlockSize, Written)
     {ok, lists:reverse([{luwak_block:name(Block),
                          byte_size(BlockData)}|
                         Written])};
+%% sub block write on a partial write
+write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written)
+  when is_list(Written), byte_size(Data) < BlockSize ->
+  PartialStartData = luwak_block:data(PartialStartBlock),
+  DataSize = byte_size(Data),
+  PartialStart = Start rem BlockSize,
+  BlockData = case byte_size(PartialStartData) of
+    S when S < PartialStart ->
+      Difference = (PartialStart - S) * 8,
+      <<PartialStartData/binary, 0:Difference, Data/binary>>;
+    S when S == PartialStart ->
+      <<PartialStartData/binary, Data/binary>>;
+    S when S > PartialStart ->
+      <<Head:PartialStart/binary, Left/binary>> = PartialStartData,
+      if
+        byte_size(Left) > DataSize ->
+          <<_:DataSize/binary, Tail>> = Left,
+          <<Head/binary, Data/binary, Tail/binary>>;
+        true ->
+          <<Head/binary, Data/binary>>
+      end
+  end,
+  {ok, Block} = luwak_block:create(Riak, BlockData),
+  {ok, lists:reverse([{luwak_block:name(Block),byte_size(BlockData)}|Written])};
 %% we are starting with a sub-block write
 write_blocks(Riak, File, PartialStartBlock, Start, Data, BlockSize, Written)
   when Start > BlockSize ->
