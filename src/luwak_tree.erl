@@ -273,7 +273,7 @@ block_at_node(_Riak, NodeObj, block, _, _NodeOffset, _) ->
     {ok, NodeObj}.
 
 which_child([E={_ChildName,Length}], NodeOffset, Pos, Acc)
-  when Pos > Length+NodeOffset ->
+  when Pos >= Length+NodeOffset ->
     ?debugFmt("A which_child(~p, ~p, ~p)~n", [E, NodeOffset, Pos]),
     {lists:reverse([E|Acc]), undefined, []};
 which_child([E], _NodeOffset, _Pos, Acc) ->

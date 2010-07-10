@@ -61,7 +61,7 @@ no_tree_put_range(Riak, File, Start, Data) ->
             write_blocks(Riak, File, undefined, Start, Data, BlockSize, []);
         _BlockOffset ->
             ?debugFmt("blockoffset ~p~n", [_BlockOffset]),
-            {ok, Block} = luwak_tree:block_at(Riak, File, Start),
+            {ok, Block} = luwak_tree:block_at(Riak, File, Start-_BlockOffset),
             write_blocks(Riak, File, Block, Start, Data, BlockSize, [])
     end.
 
@@ -79,7 +79,7 @@ internal_put_range(Riak, File, Start, Data) ->
                                            fun() -> crypto:sha(Data) end),
             {ok, Written, NewFile1};
         _BlockOffset -> 
-            {ok, Block} = luwak_tree:block_at(Riak, File, Start),
+            {ok, Block} = luwak_tree:block_at(Riak, File, Start-_BlockOffset),
             {ok, Written} =
                 write_blocks(Riak, File, Block, Start, Data, BlockSize, []),
             {ok, NewFile} =
