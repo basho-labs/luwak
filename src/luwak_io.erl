@@ -158,7 +158,7 @@ write_blocks(Riak, _File, PartialStartBlock, Start, Data, BlockSize, Written)
       <<Head:PartialStart/binary, Left/binary>> = PartialStartData,
       if
         byte_size(Left) > DataSize ->
-          <<_:DataSize/binary, Tail>> = Left,
+          <<_:DataSize/binary, Tail/binary>> = Left,
           <<Head/binary, Data/binary, Tail/binary>>;
         true ->
           <<Head/binary, Data/binary>>
