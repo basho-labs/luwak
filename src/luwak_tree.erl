@@ -147,7 +147,7 @@ visualize_tree(_Riak, DataName = <<Prefix:8/binary, _/binary>>, DataNode) ->
     PrefixData = if
                      byte_size(Data) > 8 ->
                          <<P:8/binary, _/binary>> = Data,
-                         P;
+                         mochihex:to_hex(P);
                      true ->
                          Data
                  end,
