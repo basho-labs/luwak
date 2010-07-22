@@ -4,6 +4,7 @@
   {vsn, "1"},
   {modules, [
              luwak_app,
+             luwak_sup,
              luwak_io,
              luwak_block,
              luwak_file,
@@ -11,7 +12,8 @@
              luwak_tree_utils,
              luwak_put_stream,
              luwak_get_stream,
-             luwak_checksum
+             luwak_checksum,
+             luwak_wm_file
             ]},
   {registered, []},
   {applications, [
