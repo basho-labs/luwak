@@ -82,3 +82,28 @@ sub_block_partial_write_test() ->
       ?debugFmt("blocks ~p~n", [Blocks]),
       ?assertEqual(<<B1/binary, B2/binary>>, iolist_to_binary(Blocks))
     end).
+
+%% overwrite a file with more data than the file already had, but not
+%% enough to touch the next block boundary
+overwrite_nonfull_block_test() ->
+    test_helper:riak_test(fun(Riak) ->
+        {ok, F0} = luwak_file:create(Riak,
+                                     <<"basho1">>,
+                                     [{block_size, 4}],
+                                     dict:new()),
+        S0 = luwak_put_stream:start_link(Riak, F0, 0, 1000),
+        luwak_put_stream:send(S0, <<"a">>),
+        luwak_put_stream:close(S0),
+        timer:sleep(100),
+
+        {ok, F1} = luwak_file:get(Riak, <<"basho1">>),
+        S1 = luwak_put_stream:start_link(Riak, F1, 0, 1000),
+        luwak_put_stream:send(S1, <<"aa">>),
+        luwak_put_sream:close(S1),
+        timer:sleep(100),
+
+        {ok, F2} = luwak_file:get(Riak, <<"basho1">>),
+        Blocks = luwak_io:get_range(Riak, F2, 0, 4),
+        ?debugFmt("blocks ~p~n", [Blocks]),
+        ?assertEqual(<<"aa">>, iolist_to_binary(Blocks))
+      end).

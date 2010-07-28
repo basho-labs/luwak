@@ -111,8 +111,14 @@ write_blocks(Riak, File, undefined, Start, Data, BlockSize, Written)
                                  byte_size(Data)}|
                                 Written])};
         {ok, Block} ->
-            <<_:DataSize/binary, Tail/binary>> = luwak_block:data(Block),
-            BlockData = <<Data/binary, Tail/binary>>,
+            BlockData = case luwak_block:data(Block) of
+                            <<_:DataSize/binary, Tail/binary>> ->
+                                <<Data/binary, Tail/binary>>;
+                            _ ->
+                                %% block usage is less than the new
+                                %% data for the block
+                                Data
+                        end,
             {ok, NewBlock} = luwak_block:create(Riak, BlockData),
             {ok, lists:reverse([{luwak_block:name(NewBlock),
                                  byte_size(BlockData)}|
