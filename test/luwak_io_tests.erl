@@ -162,7 +162,7 @@ overwrite_nonfull_block_test() ->
         {ok, F1} = luwak_file:get(Riak, <<"basho1">>),
         S1 = luwak_put_stream:start_link(Riak, F1, 0, 1000),
         luwak_put_stream:send(S1, <<"aa">>),
-        luwak_put_sream:close(S1),
+        luwak_put_stream:close(S1),
         timer:sleep(100),
 
         {ok, F2} = luwak_file:get(Riak, <<"basho1">>),
