@@ -206,9 +206,8 @@ retrieve_blocks(Riak, Blocks, ChopHead, Length) ->
 
 retrieve_blocks(_Riak, [], _, _, Acc) ->
     lists:reverse(Acc);
-retrieve_blocks(Riak, [{Name,_}], _, 0, Acc) ->
-    {ok, Block} = luwak_tree:get(Riak, Name),
-    retrieve_blocks(Riak, [], 0, 0, [luwak_block:data(Block)|Acc]);
+retrieve_blocks(_Riak, _, _, 0, Acc) ->
+    lists:reverse(Acc);
 retrieve_blocks(Riak, [{Name,_}], _, Length, Acc) ->
     {ok, Block} = luwak_tree:get(Riak, Name),
     PreData = luwak_block:data(Block),
@@ -222,4 +221,12 @@ retrieve_blocks(Riak, [{Name,_}], _, Length, Acc) ->
 retrieve_blocks(Riak, [{Name,_}|Children], ChopHead, Length, Acc) ->
     {ok, Block} = luwak_tree:get(Riak, Name),
     <<_:ChopHead/binary, Data/binary>> = luwak_block:data(Block),
-    retrieve_blocks(Riak, Children, 0, Length - byte_size(Data), [Data|Acc]).
+    case byte_size(Data) of
+        ByteSize when ByteSize =< Length ->
+            %% wanted the rest of the block
+            retrieve_blocks(Riak, Children, 0, Length - ByteSize, [Data|Acc]);
+        _ ->
+            %% wanted only a middle chunk of the block
+            <<SubData:Length/binary, _/binary>> = Data,
+            retrieve_blocks(Riak, Children, 0, 0, [SubData|Acc])
+    end.
