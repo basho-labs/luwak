@@ -116,7 +116,8 @@
               prefix,       %% string() - prefix for resource uris
               handle,       %% {ok, riak_object()}|{error, term()}
                             %%   - the object found
-              method        %% atom() - HTTP method for the request
+              method,       %% atom() - HTTP method for the request
+              ranges        %% [byterange()] - parsed Range header
              }).
 
 -include_lib("webmachine/include/webmachine.hrl").
@@ -230,13 +231,6 @@ malformed_request(RD, Ctx) ->
                                    io_lib:format("request timed out~n",[]),
                                    RD)),
              HCtx};
-        {error, {n_val_violation, _}} ->
-            {{halt, 400},
-             wrq:set_resp_header("Content-Type", "text/plain",
-                                 wrq:append_to_response_body(
-                                   io_lib:format("R-value unsatisfiable~n",[]),
-                                   RD)),
-             HCtx};
         {error, Err} ->
             {{halt, 500},
              wrq:set_resp_header("Content-Type", "text/plain",
@@ -245,7 +239,12 @@ malformed_request(RD, Ctx) ->
                                    RD)),
              HCtx};
         _ ->
-            {false, RD, HCtx}
+            case extract_ranges(RD) of
+                {ok, Ranges} ->
+                    {false, RD, HCtx#ctx{ranges=Ranges}};
+                {error, Invalid} ->
+                    {true, invalid_range_message(RD, Invalid), HCtx}
+            end
     end.
 
 %% @spec content_types_provided(reqdata(), context()) ->
@@ -260,24 +259,21 @@ content_types_provided(RD, Ctx=#ctx{key=undefined}) ->
 content_types_provided(RD, Ctx=#ctx{method=Method}=Ctx) when Method =:= 'PUT';
                                                              Method =:= 'POST' ->
     {ContentType, _} = extract_content_type(RD),
-    {ctypes_or_byteranges(ContentType, RD), RD, Ctx};
+    {ctypes_or_byteranges(ContentType, Ctx), RD, Ctx};
 content_types_provided(RD, Ctx0) ->
     case defined_attribute(Ctx0, ?MD_CTYPE) of
         {undefined, Ctx} ->
-            {ctypes_or_byteranges("application/octet-stream", RD), RD, Ctx};
+            {ctypes_or_byteranges("application/octet-stream", Ctx), RD, Ctx};
         {Ctype, Ctx} ->
-            {ctypes_or_byteranges(Ctype, RD), RD, Ctx}
+            {ctypes_or_byteranges(Ctype, Ctx), RD, Ctx}
     end.
 
-ctypes_or_byteranges(CType, RD) ->
-    case extract_ranges(RD) of
-        [] ->
-            [{CType, produce_doc_body}];
-        [_] ->
-            [{CType, produce_single_byterange}];
-        [_|_] ->
-            [{"multipart/byteranges", produce_byteranges}]
-    end.
+ctypes_or_byteranges(CType, #ctx{ranges=[]}) ->
+    [{CType, produce_doc_body}];
+ctypes_or_byteranges(CType, #ctx{ranges=[_]}) ->
+    [{CType, produce_single_byterange}];
+ctypes_or_byteranges(_CType, #ctx{ranges=[_|_]}) ->
+    [{"multipart/byteranges", produce_byteranges}].
 
 %% @spec charsets_provided(reqdata(), context()) ->
 %%          {no_charset|[{Charset::string(), Producer::function()}],
@@ -557,18 +553,24 @@ extract_user_meta(RD) ->
                 end,
                 mochiweb_headers:to_list(wrq:req_headers(RD))).
 
-%% @spec extract_ranges(reqdata()) -> [byterange()]
+%% @spec extract_ranges(reqdata()) -> {ok, [byterange()]}|{error, [string()]}
 %% @type byterange() = {integer(), integer()}
 %%                    |{integer(), eof}
 %%                    |{suffix, integer()}
 extract_ranges(RD) ->
     case wrq:get_req_header(?HEAD_RANGE, RD) of
         undefined ->
-            [];
+            {ok, []};
         RawHeader ->
             RawRanges = string:tokens(RawHeader, ", "),
-            %% TODO: merge overlapping ranges
-            [ parse_range(R) || R <- RawRanges ]
+            Parsed = [ {catch parse_range(R), R} || R <- RawRanges ],
+            case [ R || {{'EXIT',_}, R} <- Parsed ] of
+                [] ->
+                    %% TODO: merge overlapping ranges
+                    {ok, [ P || {P, _} <- Parsed ]};
+                Errors ->
+                    {error, Errors}
+            end
     end.
 
 parse_range([$-|R]) ->
@@ -599,8 +601,10 @@ produce_doc_body(RD, Ctx=#ctx{handle={ok, H}, client=C}) ->
      add_user_metadata(RD, H),
      Ctx}.
 
-produce_single_byterange(RD, Ctx=#ctx{handle={ok, H}, client=C}) ->
-    {Start, End} = concrete_range(C, H, hd(extract_ranges(RD))),
+produce_single_byterange(RD, Ctx=#ctx{handle={ok, H},
+                                      client=C,
+                                      ranges=[Range]}) ->
+    {Start, End} = concrete_range(C, H, Range),
     FileLength = luwak_file:length(C, H),
     RangeHead = io_lib:format("~b-~b/~b", [Start, Start+End-1, FileLength]),
     CLRD = wrq:set_resp_header(?HEAD_CRANGE, RangeHead, RD),
@@ -711,3 +715,10 @@ send_precommit_error(RD, Reason) ->
                     Reason
             end,
     wrq:append_to_response_body(Error, RD1).
+
+invalid_range_message(RD, Ranges) ->
+    RD1 = wrq:set_resp_header("Content-Type", "text/plain", RD),
+    wrq:append_to_response_body(
+      io_lib:format("The Range header specified invalid ranges: ~p",
+                    [Ranges]),
+      RD1).
