@@ -106,6 +106,7 @@
          process_post/2,
          produce_doc_body/2,
          produce_single_byterange/2,
+         produce_byteranges/2,
          accept_doc_body/2,
          delete_resource/2
         ]).
@@ -606,10 +607,23 @@ produce_single_byterange(RD, Ctx=#ctx{handle={ok, H},
                                       ranges=[Range]}) ->
     {Start, End} = concrete_range(C, H, Range),
     FileLength = luwak_file:length(C, H),
-    RangeHead = io_lib:format("~b-~b/~b", [Start, Start+End-1, FileLength]),
+    RangeHead = content_range_header(Start, End, FileLength),
     CLRD = wrq:set_resp_header(?HEAD_CRANGE, RangeHead, RD),
     {send_file(C, H, Start, End),
      add_user_metadata(CLRD, H),
+     Ctx}.
+
+produce_byteranges(RD, Ctx=#ctx{handle={ok, H},
+                                client=C,
+                                ranges=Ranges}) ->
+    CRanges = [ concrete_range(C, H, R) || R <- Ranges ],
+    FileLength = luwak_file:length(C, H),
+    Boundary = riak_core_util:unique_id_62(),
+    BRD = wrq:set_resp_header(?HEAD_CTYPE,
+                              "multipart/mixed; boundary="++Boundary,
+                              RD),
+    {{stream, multi_send_file(C, H, FileLength, Boundary, CRanges)},
+     add_user_metadata(BRD, H),
      Ctx}.
 
 add_user_metadata(RD, Handle) ->
@@ -622,6 +636,9 @@ add_user_metadata(RD, Handle) ->
                         RD, UserMeta);
         error -> RD
     end.
+
+content_range_header(Start, End, Length) ->
+    io_lib:format("~b-~b/~b", [Start, Start+End-1, Length]).
 
 send_file(Client, Handle, Start, End) ->
     Stream = luwak_get_stream:start(Client, Handle, Start, End),
@@ -642,6 +659,32 @@ send_file_helper(Stream) ->
                     {<<>>, done}
             end
     end.
+
+%% basic strategy of multi_send_file is to wrap up calls to
+%% send_file in thunks, so that as each range finishes sending
+%% we can start the next one
+multi_send_file(_C, _H, _Length, Boundary, []) ->
+    {[<<"\r\n--">>, Boundary, <<"--\r\n">>], done};
+multi_send_file(C, H, Length, Boundary, [{Start, End}|Rest]) ->
+    {stream, {Data, Thunk}} = send_file(C, H, Start, End),
+    {[multipart_header(Boundary, Start, End, Length), Data],
+     fun() ->
+             multi_send_helper(C, H, Length, Boundary, Rest, Thunk)
+     end}.
+
+multi_send_helper(C, H, Length, Boundary, Rest, done) ->
+    multi_send_file(C, H, Length, Boundary, Rest);
+multi_send_helper(C, H, Length, Boundary, Rest, Thunk) ->
+    {Data, NewThunk} = Thunk(),
+    {Data,
+     fun() ->
+             multi_send_helper(C, H, Length, Boundary, Rest, NewThunk)
+     end}.
+
+multipart_header(Boundary, Start, End, Length) ->
+    [<<"\r\n--">>, Boundary, <<"\r\n">>,
+     ?HEAD_CRANGE, <<": ">>,
+     content_range_header(Start, End, Length), <<"\r\n">>].
 
 %% @spec ensure_doc(context()) -> context()
 %% @doc Ensure that the 'doc' field of the context() has been filled
