@@ -1,5 +1,5 @@
 ^ebin/.*\.beam$
-.*\.orig$
+\.orig$
 ^\.eunit/
 ~$
 
