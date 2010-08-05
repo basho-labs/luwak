@@ -116,22 +116,40 @@ map(Parent=#n{}, TreeOffset,
                   end)
     end,
     [];
-map(Block, TreeOffset, _Map=#map{offset=Offset,ref=Ref,pid=Pid})
+map(Block, TreeOffset,
+    _Map=#map{offset=Offset,ref=Ref,pid=Pid,endoffset=EndOffset,blocksize=
+BlockSize})
   when TreeOffset < Offset ->
     ?debugFmt("B map(~p, ~p, ~p)~n", [Block, TreeOffset, _Map]),
     PartialSize = Offset - TreeOffset,
     <<_:PartialSize/binary, Tail/binary>> = luwak_block:data(Block),
-    ?debugFmt("sending ~p~n", [{get, Ref, Tail, Offset}]),
-    Pid ! {get, Ref, Tail, Offset},
+    case BlockSize >= EndOffset - TreeOffset of
+        %% should be the same as BlockSize >= EndOffset-Offset
+        false ->
+            %% wanted the rest of the block
+            ?debugFmt("sending ~p~n", [{get, Ref, Tail, Offset}]),
+            Pid ! {get, Ref, Tail, Offset};
+        true ->
+            %% wanted only a middle chunk of the block
+            SubPartialSize = EndOffset-Offset,
+            <<SubTail:SubPartialSize/binary, _/binary>> = Tail,
+            ?debugFmt("sending ~p~n", [{get, Ref, SubTail, Offset}]),
+            Pid ! {get, Ref, SubTail, Offset}
+    end,
     [];
 map(Block, TreeOffset,
     _Map=#map{endoffset=EndOffset,ref=Ref,pid=Pid,blocksize=BlockSize})
   when BlockSize >= EndOffset - TreeOffset ->
     ?debugFmt("C map(~p, ~p, ~p)~n", [Block, TreeOffset, _Map]),
-    PartialSize = EndOffset - TreeOffset,
-    <<PartialData:PartialSize/binary, _/binary>> = luwak_block:data(Block),
-    ?debugFmt("sending ~p~n", [{get, Ref, PartialData, TreeOffset}]),
-    Pid ! {get, Ref, PartialData, TreeOffset},
+    case EndOffset - TreeOffset of
+        PartialSize when PartialSize > 0 ->
+            <<PartialData:PartialSize/binary, _/binary>> = luwak_block:data(Block),
+            ?debugFmt("sending ~p~n", [{get, Ref, PartialData, TreeOffset}]),
+            Pid ! {get, Ref, PartialData, TreeOffset};
+        _PartialSize ->
+            %% boundary case where this block was looked up, but not needed
+            ok
+    end,
     [];
 map(Block, TreeOffset, _Map=#map{ref=Ref,pid=Pid}) ->
     ?debugFmt("D map(~p, ~p, ~p)~n", [Block, TreeOffset, _Map]),
