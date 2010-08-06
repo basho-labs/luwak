@@ -3,10 +3,10 @@
 -export([riak_test/1]).
 
 riak_test(Fun) ->
-%  start_riak(),
+  start_riak(),
   {ok, Riak} = riak:local_client(),
   Ret = (catch Fun(Riak)),
-%  stop_riak(),
+  stop_riak(),
   case Ret of
     {'EXIT', Err} -> throw(Err);
     _ -> Ret
