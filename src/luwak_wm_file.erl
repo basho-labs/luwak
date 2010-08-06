@@ -562,7 +562,7 @@ extract_ranges(RD) ->
     case wrq:get_req_header(?HEAD_RANGE, RD) of
         undefined ->
             {ok, []};
-        RawHeader ->
+        "bytes="++RawHeader ->
             RawRanges = string:tokens(RawHeader, ", "),
             Parsed = [ {catch parse_range(R), R} || R <- RawRanges ],
             case [ R || {{'EXIT',_}, R} <- Parsed ] of
@@ -571,7 +571,9 @@ extract_ranges(RD) ->
                     {ok, [ P || {P, _} <- Parsed ]};
                 Errors ->
                     {error, Errors}
-            end
+            end;
+        Invalid ->
+            {error, [Invalid]}
     end.
 
 parse_range([$-|R]) ->
@@ -638,7 +640,7 @@ add_user_metadata(RD, Handle) ->
     end.
 
 content_range_header(Start, End, Length) ->
-    io_lib:format("~b-~b/~b", [Start, Start+End-1, Length]).
+    io_lib:format("bytes=~b-~b/~b", [Start, Start+End-1, Length]).
 
 send_file(Client, Handle, Start, End) ->
     Stream = luwak_get_stream:start(Client, Handle, Start, End),
