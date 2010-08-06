@@ -684,7 +684,7 @@ multi_send_helper(C, H, Length, Boundary, Rest, Thunk) ->
 multipart_header(Boundary, Start, End, Length) ->
     [<<"\r\n--">>, Boundary, <<"\r\n">>,
      ?HEAD_CRANGE, <<": ">>,
-     content_range_header(Start, End, Length), <<"\r\n">>].
+     content_range_header(Start, End, Length), <<"\r\n\r\n">>].
 
 %% @spec ensure_doc(context()) -> context()
 %% @doc Ensure that the 'doc' field of the context() has been filled
