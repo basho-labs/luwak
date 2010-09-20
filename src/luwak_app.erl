@@ -10,8 +10,13 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-    riak_core_util:start_app_deps(luwak),
-    add_webmachine_routes(),
+    case app_helper:get_env(luwak, enabled, false) of
+        true ->
+            riak_core_util:start_app_deps(luwak),
+            add_webmachine_routes();
+        _ ->
+            nop
+    end,
     {ok,self()}.
 
 stop(_State) ->
