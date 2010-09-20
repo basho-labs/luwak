@@ -1,10 +1,9 @@
 {application, luwak,
  [
-  {description, ""},
-  {vsn, "1"},
+  {description, "luwak"},
+  {vsn, "1.0"},
   {modules, [
              luwak_app,
-             luwak_sup,
              luwak_io,
              luwak_block,
              luwak_file,
@@ -19,9 +18,9 @@
   {applications, [
                   kernel,
                   stdlib,
-                  riak_core,
-                  riak_kv,
-                  skerl
+                  skerl,
+                  webmachine,
+                  riak_kv
                  ]},
   {mod, { luwak_app, []}},
   {env, []}
