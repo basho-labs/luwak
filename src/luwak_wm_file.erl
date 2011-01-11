@@ -582,9 +582,9 @@ send_file_helper(Stream) ->
             end
     end.
 
-%% @spec ensure_doc(context()) -> context()
-%% @doc Ensure that the 'doc' field of the context() has been filled
-%%      with the result of a riak_client:get request.  This is a
+%% @spec ensure_handle(context()) -> context()
+%% @doc Ensure that the 'handle' field of the context() has been filled
+%%      with the result of a luwak_file:get request.  This is a
 %%      convenience for memoizing the result of a get so it can be
 %%      used in multiple places in this resource, without having to
 %%      worry about the order of executing of those places.
