@@ -37,7 +37,10 @@ create(Riak, Name, Attributes) when is_binary(Name) ->
 %%                                   checksum of the most recent write request
 %%                                   as a property of the filehandle.
 create(Riak, Name, Properties, Attributes) when is_binary(Name) ->
-    BlockSize = proplists:get_value(block_size, Properties, ?BLOCK_DEFAULT),
+    DefaultBlockSize = app_helper:get_env(luwak,
+                                          default_block_size,
+                                          ?BLOCK_DEFAULT),
+    BlockSize = proplists:get_value(block_size, Properties, DefaultBlockSize),
     Order = proplists:get_value(tree_order, Properties, ?ORDER_DEFAULT),
     Checksumming = proplists:get_value(checksumming, Properties, false),
     if
