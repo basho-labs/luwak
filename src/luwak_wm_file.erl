@@ -212,6 +212,8 @@ malformed_request(RD, Ctx) when Ctx#ctx.method =:= 'POST'
         _ ->
             {false, RD, Ctx}
     end;
+malformed_request(RD, Ctx) when Ctx#ctx.key =:= undefined ->
+    {false, RD, Ctx};
 malformed_request(RD, Ctx) ->
     HCtx = ensure_handle(Ctx),
     case HCtx#ctx.handle of
