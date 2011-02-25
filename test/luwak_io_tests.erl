@@ -5,32 +5,32 @@
 simple_put_range_test() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,5}], dict:new()),
-      {ok, Written, _} = luwak_io:put_range(Riak, File, 0, <<"fuckyourcouch">>),
-      Hash1 = <<"4622b193a65e6f2a7873b6bef7e3b0cf18867f687e48f40fd9eabf840d5f0ebbd65bfff586e5c38ba50e473516e8f270b6687a1f271586baf648a38aa489dd91">>,
-      Hash2 = <<"08d5f211d13a9fb1e9b6902771b80459fedbb9e138b96d7a6dc3b92ad87997d24b65cc1a8594cc14b226cd511acf03eb3f4b24c7b67d270665d5bf5cb43f8fa6">>,
-      Hash3 = <<"6f01ab53f4498ccfa5de27d9fa1fd1aa3c088958588db410bc35055012e6ed2795c39d8abe454402062436434b15acc78baddb016c370cd445579401562ea316">>,
+      {ok, Written, _} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklm">>),
+      Hash1 = <<"751fa004096ddee0b639b37d02fdb2dc68bd4eb7749bb2c17e5edc624d8a9eef4815e4cc1132cc14dfc493d1f46fc1b072653c0bcb3533e1da9676e96a4aeb30">>,
+      Hash2 = <<"86a17f1a92887662099480d4bdd222d7e3372b347a1df276a183e3df5407d68ab44225967c0047f8e1a7c8d854198ac949a3d8f960385c7df4655a9143ad7fa7">>,
+      Hash3 = <<"a472d1328b53ad058a383902e0a4170ad6b202f78fb1b25a5a41c8bb9f4a552f20ffebed176620f84990d2d60c9ecd85513af915e8f25bcb35e77c1b46efed67">>,
       {ok, Block1} = Riak:get(<<"luwak_node">>, Hash1, 2),
       {ok, Block2} = Riak:get(<<"luwak_node">>, Hash2, 2),
       {ok, Block3} = Riak:get(<<"luwak_node">>, Hash3, 2),
-      ?assertEqual(<<"fucky">>, luwak_block:data(Block1)),
-      ?assertEqual(<<"ourco">>, luwak_block:data(Block2)),
-      ?assertEqual(<<"uch">>, luwak_block:data(Block3)),
+      ?assertEqual(<<"abcde">>, luwak_block:data(Block1)),
+      ?assertEqual(<<"fghij">>, luwak_block:data(Block2)),
+      ?assertEqual(<<"klm">>, luwak_block:data(Block3)),
       ?assertEqual([{Hash1,5},{Hash2,5},{Hash3,3}], Written)
     end).
 
 simple_get_range_test() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,2},{tree_order,3}], dict:new()),
-      {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"fuckyourcouch">>),
+      {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklm">>),
       Blocks = luwak_io:get_range(Riak, File1, 3, 5),
       ok = file:write_file("tree4.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File1, root))),
-      ?assertEqual(<<"kyour">>, iolist_to_binary(Blocks))
+      ?assertEqual(<<"defgh">>, iolist_to_binary(Blocks))
     end).
     
 read_beyond_eof_test() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,2},{tree_order,3}], dict:new()),
-      {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"fuckyourcouch">>),
+      {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklm">>),
       Blocks = luwak_io:get_range(Riak, File1, 14, 5),
       ?assertEqual([], Blocks)
     end).
@@ -38,10 +38,10 @@ read_beyond_eof_test() ->
 multilevel_get_range_test() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,3},{tree_order,3}], dict:new()),
-      {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"wontyoupleasetouchmymonkey">>),
+      {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklmnopqrstuvwxyz">>),
       Blocks = luwak_io:get_range(Riak, File1, 4, 9),
       ok = file:write_file("tree5.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File1, root))),
-      ?assertEqual(<<"youplease">>, iolist_to_binary(Blocks))
+      ?assertEqual(<<"efghijklm">>, iolist_to_binary(Blocks))
     end).
 
 %% @doc Makes a simple file, named Name, with BlockCount blocks, each
@@ -110,20 +110,20 @@ partial_middle_block_get_range_test() ->
 eof_get_range_test() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,3},{tree_order,3}], dict:new()),
-      {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"wontyoupleasetouchmymonkey">>),
+      {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklmnopqrstuvwxyz">>),
       ok = file:write_file("tree6.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File1, root))),
       Blocks = luwak_io:get_range(Riak, File1, 20, 20),
-      ?assertEqual(<<"monkey">>, iolist_to_binary(Blocks))
+      ?assertEqual(<<"uvwxyz">>, iolist_to_binary(Blocks))
     end).
 
 truncate_test() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,3},{tree_order,3}], dict:new()),
-      {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"wontyoupleasetouchmymonkey">>),
+      {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklmnopqrstuvwxyz">>),
       {ok, File2} = luwak_io:truncate(Riak, File1, 7),
       ok = file:write_file("tree7.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File2, root))),
       Blocks = luwak_io:get_range(Riak, File2, 0, 7),
-      ?assertEqual(<<"wontyou">>, iolist_to_binary(Blocks))
+      ?assertEqual(<<"abcdefg">>, iolist_to_binary(Blocks))
     end).
 
 sub_block_partial_write_test() ->

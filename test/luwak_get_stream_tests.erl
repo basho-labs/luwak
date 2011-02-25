@@ -5,18 +5,18 @@
 simple_get_stream_test() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,3},{tree_order,3}], dict:new()),
-      {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"wontyoupleasetouchmymonkey">>),
+      {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklmnopqrstuvwxyz">>),
       GetStream = luwak_get_stream:start(Riak, File1, 0, 26),
       timer:sleep(100),
-      ?assertEqual({<<"won">>, 0}, luwak_get_stream:recv(GetStream, 1000)),
-      ?assertEqual({<<"tyo">>, 3}, luwak_get_stream:recv(GetStream, 1000)),
-      ?assertEqual({<<"upl">>, 6}, luwak_get_stream:recv(GetStream, 1000)),
-      ?assertEqual({<<"eas">>, 9}, luwak_get_stream:recv(GetStream, 1000)),
-      ?assertEqual({<<"eto">>, 12}, luwak_get_stream:recv(GetStream, 1000)),
-      ?assertEqual({<<"uch">>, 15}, luwak_get_stream:recv(GetStream, 1000)),
-      ?assertEqual({<<"mym">>, 18}, luwak_get_stream:recv(GetStream, 1000)),
-      ?assertEqual({<<"onk">>, 21}, luwak_get_stream:recv(GetStream, 1000)),
-      ?assertEqual({<<"ey">>, 24}, luwak_get_stream:recv(GetStream, 1000)),
+      ?assertEqual({<<"abc">>, 0}, luwak_get_stream:recv(GetStream, 1000)),
+      ?assertEqual({<<"def">>, 3}, luwak_get_stream:recv(GetStream, 1000)),
+      ?assertEqual({<<"ghi">>, 6}, luwak_get_stream:recv(GetStream, 1000)),
+      ?assertEqual({<<"jkl">>, 9}, luwak_get_stream:recv(GetStream, 1000)),
+      ?assertEqual({<<"mno">>, 12}, luwak_get_stream:recv(GetStream, 1000)),
+      ?assertEqual({<<"pqr">>, 15}, luwak_get_stream:recv(GetStream, 1000)),
+      ?assertEqual({<<"stu">>, 18}, luwak_get_stream:recv(GetStream, 1000)),
+      ?assertEqual({<<"vwx">>, 21}, luwak_get_stream:recv(GetStream, 1000)),
+      ?assertEqual({<<"yz">>, 24}, luwak_get_stream:recv(GetStream, 1000)),
       ?assertEqual(eos, luwak_get_stream:recv(GetStream, 1000))
     end).
     
@@ -24,14 +24,14 @@ three_level_tree_stream_test_() ->
   Test = fun() ->
     test_helper:riak_test(fun(Riak) ->
         {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,2},{tree_order,2}], dict:new()),
-        {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"wontyoupleasetouchmymonkey">>),
+        {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklmnopqrstuvwxyz">>),
         GetStream = luwak_get_stream:start(Riak, File1, 3, 10),
-        ?assertEqual({<<"t">>, 3}, luwak_get_stream:recv(GetStream, 1000)),
-        ?assertEqual({<<"yo">>, 4}, luwak_get_stream:recv(GetStream, 1000)),
-        ?assertEqual({<<"up">>, 6}, luwak_get_stream:recv(GetStream, 1000)),
-        ?assertEqual({<<"le">>, 8}, luwak_get_stream:recv(GetStream, 1000)),
-        ?assertEqual({<<"as">>, 10}, luwak_get_stream:recv(GetStream, 1000)),
-        ?assertEqual({<<"e">>, 12}, luwak_get_stream:recv(GetStream, 1000)),
+        ?assertEqual({<<"d">>, 3}, luwak_get_stream:recv(GetStream, 1000)),
+        ?assertEqual({<<"ef">>, 4}, luwak_get_stream:recv(GetStream, 1000)),
+        ?assertEqual({<<"gh">>, 6}, luwak_get_stream:recv(GetStream, 1000)),
+        ?assertEqual({<<"ij">>, 8}, luwak_get_stream:recv(GetStream, 1000)),
+        ?assertEqual({<<"kl">>, 10}, luwak_get_stream:recv(GetStream, 1000)),
+        ?assertEqual({<<"m">>, 12}, luwak_get_stream:recv(GetStream, 1000)),
         ?assertEqual(eos, luwak_get_stream:recv(GetStream, 1000))
       end)
     end,
@@ -40,7 +40,7 @@ three_level_tree_stream_test_() ->
 read_beyond_file_end_test() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,2},{tree_order,2}], dict:new()),
-      {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"wontyoupleasetouchmymonkey">>),
+      {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abscdefghijklmnopqrstuvwxyz">>),
       GetStream = luwak_get_stream:start(Riak, File1, 30, 10),
       ?assertEqual(eos, luwak_get_stream:recv(GetStream, 1000))
     end).
