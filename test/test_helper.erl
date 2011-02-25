@@ -30,6 +30,7 @@ start_riak() ->
                        runtime_tools,
                        mochiweb,
                        webmachine,
+                       riak_sysmon,
                        riak_core,
                        luke,
                        erlang_js,
