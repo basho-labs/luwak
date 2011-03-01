@@ -2,11 +2,25 @@
 
 -export([riak_test/1]).
 
+-define(APPS,
+        [crypto,
+         os_mon,
+         runtime_tools,
+         mochiweb,
+         webmachine,
+         riak_sysmon,
+         riak_core,
+         luke,
+         erlang_js,
+         skerl,
+         bitcask,
+         riak_kv]).
+
 riak_test(Fun) ->
+  stop_riak(),
   start_riak(),
   {ok, Riak} = riak:local_client(),
   Ret = (catch Fun(Riak)),
-  stop_riak(),
   case Ret of
     {'EXIT', Err} -> throw(Err);
     _ -> Ret
@@ -25,21 +39,20 @@ start_riak() ->
   error_logger:delete_report_handler(error_logger_tty_h),
   application:start(sasl),
   error_logger:delete_report_handler(sasl_report_tty_h),
-  load_and_start_apps([crypto,
-                       os_mon,
-                       runtime_tools,
-                       mochiweb,
-                       webmachine,
-                       riak_sysmon,
-                       riak_core,
-                       luke,
-                       erlang_js,
-                       skerl,
-                       bitcask,
-                       riak_kv]).
+  load_and_start_apps(?APPS).
     
 stop_riak() ->
-  application:stop(riak_kv).
+    case whereis(riak_core_ring_manager) of
+        undefined ->
+            ok;
+        Pid ->
+            %% when running from riak root
+            exit(Pid, kill)
+    end,
+    Stop = fun(App) ->
+                   application:stop(App)
+           end,
+    lists:foreach(Stop, lists:reverse(?APPS)).
   
 load_and_start_apps([]) -> ok;
 load_and_start_apps([App|Tail]) ->
