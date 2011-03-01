@@ -417,7 +417,8 @@ produce_toplevel_body(RD, Ctx=#ctx{client=C}) ->
             _ ->
                 Props = [{<<"o_bucket">>, ?O_BUCKET},
                          {<<"n_bucket">>, ?N_BUCKET},
-                         {<<"block_default">>, ?BLOCK_DEFAULT}],
+                         {<<"block_default">>,
+                         luwak_file:get_default_block_size()}],
                 [{?JSON_PROPS, {struct, Props}}]
         end,
     KeyPart =
@@ -503,7 +504,8 @@ accept_doc_body(RD, Ctx=#ctx{key=K, client=C}) ->
 
 accept_streambody(RD, #ctx{handle={ok, H}, client=C}) ->
     Stream = luwak_put_stream:start_link(C, H, 0, 1000),
-    accept_streambody1(Stream, 0, wrq:stream_req_body(RD, ?BLOCK_DEFAULT)).
+    Size = luwak_file:get_default_block_size(),
+    accept_streambody1(Stream, 0, wrq:stream_req_body(RD, Size)).
 
 accept_streambody1(Stream, Count0, {Data, Next}) ->
     Count = Count0+size(Data),

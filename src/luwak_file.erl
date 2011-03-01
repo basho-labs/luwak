@@ -8,6 +8,7 @@
          delete/2,
          get/2,
          get_property/2,
+         get_default_block_size/0,
          update_root/3,
          update_checksum/3, 
          name/1,
@@ -37,10 +38,8 @@ create(Riak, Name, Attributes) when is_binary(Name) ->
 %%                                   checksum of the most recent write request
 %%                                   as a property of the filehandle.
 create(Riak, Name, Properties, Attributes) when is_binary(Name) ->
-    DefaultBlockSize = app_helper:get_env(luwak,
-                                          default_block_size,
-                                          ?BLOCK_DEFAULT),
-    BlockSize = proplists:get_value(block_size, Properties, DefaultBlockSize),
+    BlockSize = proplists:get_value(block_size, Properties,
+                                    get_default_block_size()),
     Order = proplists:get_value(tree_order, Properties, ?ORDER_DEFAULT),
     Checksumming = proplists:get_value(checksumming, Properties, false),
     if
@@ -132,6 +131,9 @@ get_property(Obj, PropName) ->
         List when is_list(List) -> proplists:get_value(PropName, List);
         _ -> undefined
     end.
+
+get_default_block_size() ->
+    app_helper:get_env(luwak, default_block_size, ?BLOCK_DEFAULT).
 
 %% @private
 update_root(Riak, Obj, NewRoot) ->
