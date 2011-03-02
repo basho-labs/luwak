@@ -124,6 +124,7 @@
 
 -define(HEAD_RANGE, "Range").
 -define(HEAD_CRANGE, "Content-Range").
+-define(HEAD_BLOCK_SZ, "X-Luwak-Block-Size").
 
 %% @spec init(proplist()) -> {ok, context()}
 %% @doc Initialize this resource.  This function extracts the
@@ -495,7 +496,8 @@ accept_doc_body(RD, Ctx=#ctx{key=K, client=C}) ->
     H0 = case Ctx#ctx.handle of
              {ok, H} -> H;
              _ ->
-                 {ok, H} = luwak_file:create(C, K, dict:new()),
+                 FileProps = extract_file_props(RD),
+                 {ok, H} = luwak_file:create(C, K, FileProps, dict:new()),
                  H
          end,
     {ok,H1} = luwak_file:set_attributes(C, H0, UserMetaMD),
@@ -542,6 +544,22 @@ extract_user_meta(RD) ->
                         string:to_lower(any_to_list(K)))
                 end,
                 mochiweb_headers:to_list(wrq:req_headers(RD))).
+
+%% @spec extract_file_props(reqdata()) -> proplists()
+%% @doc Extract Luwak file properties from custom headers prefixed by
+%%      X-Luwak- in the client's request.
+extract_file_props(RD) ->
+    extract_headers(RD, [{block_size, ?HEAD_BLOCK_SZ}], []).
+
+extract_headers(_RD, [], Acc) ->
+    Acc;
+extract_headers(RD, [{Key, Header}|T], Acc) ->
+    case wrq:get_req_header(Header, RD) of
+        undefined ->
+            extract_headers(RD, T, Acc);
+        Val ->
+            extract_headers(RD, T, [{Key, Val}|Acc])
+    end.
 
 %% @spec produce_doc_body(reqdata(), context()) -> {binary(), reqdata(), context()}
 %% @doc Extract the value of the document, and place it in the response
