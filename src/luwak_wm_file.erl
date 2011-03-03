@@ -549,16 +549,18 @@ extract_user_meta(RD) ->
 %% @doc Extract Luwak file properties from custom headers prefixed by
 %%      X-Luwak- in the client's request.
 extract_file_props(RD) ->
-    extract_headers(RD, [{block_size, ?HEAD_BLOCK_SZ}], []).
+    extract_headers(RD,
+                    [{block_size, ?HEAD_BLOCK_SZ, fun list_to_integer/1}],
+                    []).
 
 extract_headers(_RD, [], Acc) ->
     Acc;
-extract_headers(RD, [{Key, Header}|T], Acc) ->
+extract_headers(RD, [{Key, Header, Cast}|T], Acc) ->
     case wrq:get_req_header(Header, RD) of
         undefined ->
             extract_headers(RD, T, Acc);
         Val ->
-            extract_headers(RD, T, [{Key, Val}|Acc])
+            extract_headers(RD, T, [{Key, Cast(Val)}|Acc])
     end.
 
 %% @spec produce_doc_body(reqdata(), context()) -> {binary(), reqdata(), context()}
