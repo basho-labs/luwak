@@ -24,7 +24,8 @@ riak_test(Fun) ->
   case Ret of
     {'EXIT', Err} -> throw(Err);
     _ -> Ret
-  end.
+  end,
+  net_kernel:stop().
 
 start_riak() ->
     [] = os:cmd("epmd -daemon"),
