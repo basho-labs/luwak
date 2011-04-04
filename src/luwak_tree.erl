@@ -242,7 +242,10 @@ list_into_nodes(Riak, Children, Order, StartingPos) ->
     end.
 
 %% @spec block_at(Riak::riak(), File::luwak_file(), Pos::int()) ->
-%%          {ok, BlockObj} | {error, Reason}
+%%          {ok, BlockObj::riak_object:riak_object()} | {error, Reason}
+-spec block_at(term(), term(), non_neg_integer()) ->
+                      {ok, BlockObj::riak_object:riak_object()} | 
+                      {ok, undefined} | {error, Reason::term()}.
 block_at(Riak, File, Pos) ->
     case luwak_file:get_property(File, root) of
         undefined -> {error, notfound};

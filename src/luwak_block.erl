@@ -14,7 +14,8 @@ create(Riak, Data) ->
             ],
     Obj = riak_object:new(?N_BUCKET, skerl:hexhash(?HASH_LEN, Data), Value),
     Riak:put(Obj, 2, 2, ?TIMEOUT_DEFAULT, [{returnbody, true}]).
-  
+
+-spec data(list() | riak_object:riak_object()) -> binary().
 data(Val) when is_list(Val) ->
     proplists:get_value(data, Val);
 data(Object) ->
