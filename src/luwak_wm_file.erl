@@ -115,7 +115,8 @@
               prefix,       %% string() - prefix for resource uris
               handle,       %% {ok, riak_object()}|{error, term()}
                             %%   - the object found
-              method        %% atom() - HTTP method for the request
+              method,       %% atom() - HTTP method for the request
+              file_props    %% list() - file properties to pass to create
              }).
 
 -include_lib("webmachine/include/webmachine.hrl").
@@ -130,7 +131,8 @@
 %% @doc Initialize this resource.  This function extracts the
 %%      'prefix' property from the dispatch args.
 init(Props) ->
-    {ok, #ctx{prefix=proplists:get_value(prefix, Props)}}.
+    {ok, #ctx{prefix=proplists:get_value(prefix, Props),
+              file_props=[]}}.
 
 %% @spec service_available(reqdata(), context()) ->
 %%          {boolean(), reqdata(), context()}
@@ -211,7 +213,7 @@ malformed_request(RD, Ctx) when Ctx#ctx.method =:= 'POST'
         undefined ->
             {true, missing_content_type(RD), Ctx};
         _ ->
-            {false, RD, Ctx}
+            malformed_block_size(RD, Ctx)
     end;
 malformed_request(RD, Ctx) when Ctx#ctx.key =:= undefined ->
     {false, RD, Ctx};
@@ -241,6 +243,22 @@ malformed_request(RD, Ctx) ->
              HCtx};
         _ ->
             {false, RD, HCtx}
+    end.
+malformed_block_size(RD, Ctx=#ctx{file_props=FP}) ->
+    HCtx = ensure_handle(Ctx),
+    case HCtx#ctx.handle of
+        {ok, _H} -> {false, RD, HCtx};
+        _ ->
+            case check_header(RD, ?HEAD_BLOCK_SZ,
+                              fun list_to_integer/1, fun is_pos/1) of
+                undefined -> {false, RD, HCtx};
+                {error, Name} ->
+                    {true,
+                     error_resp(RD, "invalid value for ~s~n", [Name]),
+                     HCtx};
+                {ok, Val} ->
+                    {false, RD, HCtx#ctx{file_props=[{block_size,Val}|FP]}}
+            end
     end.
 
 %% @spec content_types_provided(reqdata(), context()) ->
@@ -480,7 +498,7 @@ process_post(RD, Ctx) -> accept_doc_body(RD, Ctx).
 %% @doc Store the data the client is PUTing in the document.
 %%      This function translates the headers and body of the HTTP request
 %%      into their final riak_object() form, and executes the Riak put.
-accept_doc_body(RD, Ctx=#ctx{key=K, client=C}) ->
+accept_doc_body(RD, Ctx=#ctx{key=K, client=C, file_props=FP}) ->
     {CType, Charset} = extract_content_type(RD),
     UserMeta = extract_user_meta(RD),
     CTypeMD = dict:store(?MD_CTYPE, CType, dict:new()),
@@ -496,8 +514,7 @@ accept_doc_body(RD, Ctx=#ctx{key=K, client=C}) ->
     H0 = case Ctx#ctx.handle of
              {ok, H} -> H;
              _ ->
-                 FileProps = extract_file_props(RD),
-                 {ok, H} = luwak_file:create(C, K, FileProps, dict:new()),
+                 {ok, H} = luwak_file:create(C, K, FP, dict:new()),
                  H
          end,
     {ok,H1} = luwak_file:set_attributes(C, H0, UserMetaMD),
@@ -544,24 +561,6 @@ extract_user_meta(RD) ->
                         string:to_lower(any_to_list(K)))
                 end,
                 mochiweb_headers:to_list(wrq:req_headers(RD))).
-
-%% @spec extract_file_props(reqdata()) -> proplists()
-%% @doc Extract Luwak file properties from custom headers prefixed by
-%%      X-Luwak- in the client's request.
-extract_file_props(RD) ->
-    extract_headers(RD,
-                    [{block_size, ?HEAD_BLOCK_SZ, fun list_to_integer/1}],
-                    []).
-
-extract_headers(_RD, [], Acc) ->
-    Acc;
-extract_headers(RD, [{Key, Header, Cast}|T], Acc) ->
-    case wrq:get_req_header(Header, RD) of
-        undefined ->
-            extract_headers(RD, T, Acc);
-        Val ->
-            extract_headers(RD, T, [{Key, Cast(Val)}|Acc])
-    end.
 
 %% @spec produce_doc_body(reqdata(), context()) -> {binary(), reqdata(), context()}
 %% @doc Extract the value of the document, and place it in the response
@@ -678,3 +677,30 @@ send_precommit_error(RD, Reason) ->
                     Reason
             end,
     wrq:append_to_response_body(Error, RD1).
+
+error_resp(RD, Fmt, Data) ->
+    RD1 = wrq:set_resp_header("Content-Type", "text/plain", RD),
+    wrq:append_to_response_body(io_lib:format(Fmt, Data), RD1).
+
+check_header(RD, Name, Cast, Validate) ->
+    check_header(RD, Name, Cast, Validate, undefined).
+
+check_header(RD, Name, Cast, Validate, Default) ->
+    case wrq:get_req_header(Name, RD) of
+        undefined -> Default;
+        Val0 ->
+            Val = try Cast(Val0)
+                  catch _:_ -> {error, Name}
+                  end,
+            case Val of
+                {error, Name} -> {error, Name};
+                _ ->
+                    case Validate(Val) of
+                        true -> {ok, Val};
+                        false -> {error, Name}
+                    end
+            end
+    end.
+
+is_pos(N) ->
+    N > 0.
