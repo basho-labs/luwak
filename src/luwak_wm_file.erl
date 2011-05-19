@@ -521,8 +521,12 @@ accept_doc_body(RD, Ctx=#ctx{key=K, client=C, file_props=FP}) ->
     HCtx = Ctx#ctx{handle={ok,H1}},
     {accept_streambody(RD, HCtx), RD, HCtx}.
 
-accept_streambody(RD, #ctx{handle={ok, H}, client=C}) ->
-    Stream = luwak_put_stream:start_link(C, H, 0, 1000),
+accept_streambody(RD, #ctx{handle={ok, H}, client=C, method=Method}) ->
+    Offset = case Method of
+		 'POST' -> luwak_file:length(C,H);
+		 _ ->0
+	     end,
+    Stream = luwak_put_stream:start_link(C, H, Offset, 1000),
     Size = luwak_file:get_default_block_size(),
     accept_streambody1(Stream, 0, wrq:stream_req_body(RD, Size)).
 
