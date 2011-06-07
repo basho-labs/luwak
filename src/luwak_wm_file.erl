@@ -528,7 +528,14 @@ accept_streambody(RD, #ctx{handle={ok, H}, client=C, method=Method}) ->
 	     end,
     Stream = luwak_put_stream:start_link(C, H, Offset, 1000),
     Size = luwak_file:get_default_block_size(),
-    accept_streambody1(Stream, 0, wrq:stream_req_body(RD, Size)).
+    {H2, Count} = accept_streambody1(Stream, 0, wrq:stream_req_body(RD, Size)),
+    H2Len = luwak_file:length(C, H2),
+    %% truncate will fail if passed a Start >= the length of the file
+    if Count < H2Len ->
+            {ok, _} = luwak_io:truncate(C, H2, Count),
+            true;
+       true -> true
+    end.
 
 accept_streambody1(Stream, Count0, {Data, Next}) ->
     Count = Count0+size(Data),
@@ -537,7 +544,8 @@ accept_streambody1(Stream, Count0, {Data, Next}) ->
             accept_streambody1(Stream, Count, Next());
        Next =:= done ->
             luwak_put_stream:close(Stream),
-            true
+            {ok, File} = luwak_put_stream:status(Stream, ?TIMEOUT_DEFAULT),
+            {File, Count}
     end.
 
 %% @spec extract_content_type(reqdata()) ->
