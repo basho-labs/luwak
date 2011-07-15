@@ -6,6 +6,7 @@
         [crypto,
          os_mon,
          runtime_tools,
+         inets,
          mochiweb,
          webmachine,
          riak_sysmon,
