@@ -1,7 +1,7 @@
 -module(luwak_tree_utils_tests).
 
 -include_lib("eunit/include/eunit.hrl").
--include_lib("luwak/include/luwak.hrl").
+-include_lib("luwak.hrl").
 
 left_list_larger_subtree_test() ->
     A = [{a,100}, {b,50}, {c,200}],
