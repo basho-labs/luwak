@@ -15,6 +15,7 @@
          erlang_js,
          skerl,
          bitcask,
+         riak_pipe,
          riak_kv]).
 
 riak_test(Fun) ->
