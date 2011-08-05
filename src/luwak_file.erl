@@ -14,7 +14,7 @@
          name/1,
          length/2]).
 
--include_lib("luwak.hrl").
+-include("luwak.hrl").
 
 %% @spec create(Riak :: riak(), Name :: binary(), Attributes :: dict())
 %%        -> {ok, File :: luwak_file()}

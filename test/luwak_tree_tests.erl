@@ -1,9 +1,30 @@
 -module(luwak_tree_tests).
 
--include_lib("eunit/include/eunit.hrl").
--include_lib("luwak.hrl").
+-ifdef(TEST).
 
-create_simple_tree_test() ->
+-include_lib("eunit/include/eunit.hrl").
+-include("luwak.hrl").
+
+tree_test_() ->
+    {spawn,
+     [{setup,
+       fun test_helper:setup/0,
+       fun test_helper:cleanup/1,
+       [
+        {timeout, 60000,
+         [fun create_simple_tree/0,
+          fun create_and_overwrite_middle_tree/0,
+          fun create_multilevel_tree/0,
+          fun create_and_overwrite_multilevel_tree/0,
+          fun create_and_append/0,
+          fun append_beyond_pointer/0,
+          fun block_at/0]}
+       ]
+      }
+     ]
+    }.
+
+create_simple_tree() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,4},{block_size,5}], dict:new()),
       {ok, _Written, File2} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklm">>),
@@ -18,7 +39,7 @@ create_simple_tree_test() ->
       ?assertEqual([{BHash1,5},{BHash2,5},{BHash3,3}], Children)
     end).
 
-create_and_overwrite_middle_tree_test() ->
+create_and_overwrite_middle_tree() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,4},{block_size,5}], dict:new()),
       {ok, _Written1, File2} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklm">>),
@@ -34,7 +55,7 @@ create_and_overwrite_middle_tree_test() ->
       ?assertEqual([{BHash1_2,5},{BHash2_2,5},{BHash3,3}], Children)
     end).
 
-create_multilevel_tree_test() ->
+create_multilevel_tree() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,5},{block_size,1}], dict:new()),
       {ok, _Written1, File2} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklm">>),
@@ -57,7 +78,7 @@ create_multilevel_tree_test() ->
       ?assertEqual(ThirdNodeChildren, Node3Node#n.children)
     end).
 
-create_and_overwrite_multilevel_tree_test() ->
+create_and_overwrite_multilevel_tree() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,5},{block_size,1}], dict:new()),
       {ok, _Written1, File2} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklm">>),
@@ -83,7 +104,7 @@ create_and_overwrite_multilevel_tree_test() ->
       ?assertEqual(ThirdNodeChildren, Node3Node#n.children)
     end).
 
-create_and_append_test() ->
+create_and_append() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,3},{block_size,2}], dict:new()),
       {ok, _Written1, File2} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklm">>),
@@ -93,7 +114,7 @@ create_and_append_test() ->
       ?assertEqual(<<"abcdefghijklmnopqrstuvwxyz">>, iolist_to_binary(luwak_io:get_range(Riak, File3, 0, 26)))
     end).
 
-append_beyond_pointer_test() ->
+append_beyond_pointer() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,3},{block_size,2}], dict:new()),
       {ok, _Written1, File2} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklm">>),
@@ -101,7 +122,7 @@ append_beyond_pointer_test() ->
       ?assertEqual(<<"abcdefghijklmnopqrstuvwxyz">>, iolist_to_binary(luwak_io:get_range(Riak, File3, 0, 26)))
     end).
 
-block_at_test() ->
+block_at() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{tree_order,3},{block_size,3}], dict:new()),
       {ok, _Written1, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklmno">>),
@@ -110,3 +131,5 @@ block_at_test() ->
       timer:sleep(1000),
       ?assertEqual(<<"jkl">>, Data)
     end).
+
+-endif.

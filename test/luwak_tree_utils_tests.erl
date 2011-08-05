@@ -1,7 +1,10 @@
 -module(luwak_tree_utils_tests).
 
+-ifdef(TEST).
+
 -include_lib("eunit/include/eunit.hrl").
--include_lib("luwak.hrl").
+-include("luwak.hrl").
+
 
 left_list_larger_subtree_test() ->
     A = [{a,100}, {b,50}, {c,200}],
@@ -108,3 +111,5 @@ subtree_split_test() ->
     ?assertEqual({{[{a,50},{b,50}],[{c,50}]},
                   {[{d,150}],[{e,100}]}},
                  luwak_tree_utils:shortest_subtree_split(ListA, ListB, 50, 0)).
+
+-endif.

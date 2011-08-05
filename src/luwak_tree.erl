@@ -9,7 +9,7 @@
          truncate/7,
          truncate/1]).
 
--include_lib("luwak.hrl").
+-include("luwak.hrl").
 
 %%=======================================
 %% Public API

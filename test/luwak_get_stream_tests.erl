@@ -1,8 +1,28 @@
 -module(luwak_get_stream_tests).
 
+-ifdef(TEST).
+
 -include_lib("eunit/include/eunit.hrl").
 
-simple_get_stream_test() ->
+get_stream_test_() ->
+    {spawn,
+     [{setup,
+       fun test_helper:setup/0,
+       fun test_helper:cleanup/1,
+       [
+        {timeout, 60000,
+         [fun simple_get_stream/0,
+          fun three_level_tree_stream/0,
+          fun read_beyond_file_end/0,
+          fun partial_end_block_get_range/0,
+          fun partial_start_block_get_range/0,
+          fun partial_middle_block_get_range/0]}
+       ]
+      }
+     ]
+    }.
+
+simple_get_stream() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,3},{tree_order,3}], dict:new()),
       {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklmnopqrstuvwxyz">>),
@@ -19,8 +39,8 @@ simple_get_stream_test() ->
       ?assertEqual({<<"yz">>, 24}, luwak_get_stream:recv(GetStream, 1000)),
       ?assertEqual(eos, luwak_get_stream:recv(GetStream, 1000))
     end).
-    
-three_level_tree_stream_test_() ->
+
+three_level_tree_stream() ->
   Test = fun() ->
     test_helper:riak_test(fun(Riak) ->
         {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,2},{tree_order,2}], dict:new()),
@@ -37,7 +57,7 @@ three_level_tree_stream_test_() ->
     end,
   {timeout, 30000, Test}.
 
-read_beyond_file_end_test() ->
+read_beyond_file_end() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,2},{tree_order,2}], dict:new()),
       {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abscdefghijklmnopqrstuvwxyz">>),
@@ -67,7 +87,7 @@ make_standard_range_file(Riak, Name, BlockSize, BlockCount) ->
 %% the middle of a block
 %% Ex: aaaaaaaaaa bbbbbbbbbb cccccccccc
 %%                ^start      end^
-partial_end_block_get_range_test() ->
+partial_end_block_get_range() ->
     test_helper:riak_test(
       fun(Riak) ->
               {ok, Data, File} =  make_standard_range_file(
@@ -82,7 +102,7 @@ partial_end_block_get_range_test() ->
 %% middle of a block
 %% Ex: aaaaaaaaaa bbbbbbbbbb cccccccccc
 %%          ^start       end^
-partial_start_block_get_range_test() ->
+partial_start_block_get_range() ->
     test_helper:riak_test(
       fun(Riak) ->
               {ok, Data, File} = make_standard_range_file(
@@ -98,7 +118,7 @@ partial_start_block_get_range_test() ->
 %% is unaligned with that block
 %% Ex: aaaaaaaaaa bbbbbbbbbb cccccccccc
 %%                 ^st end^
-partial_middle_block_get_range_test() ->
+partial_middle_block_get_range() ->
     test_helper:riak_test(
       fun(Riak) ->
               {ok, Data, File} = make_standard_range_file(
@@ -118,3 +138,5 @@ read_stream(Stream, {Data, _}, Acc) ->
     read_stream(Stream,
                 luwak_get_stream:recv(Stream, 1000),
                 [Data|Acc]).
+
+-endif.

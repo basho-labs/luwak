@@ -12,12 +12,16 @@
 
 -record(split, {head=[], midhead=[], middle=[], midtail=[], tail=[]}).
 
--ifndef(EUNIT_HRL).
+-ifdef(TEST).
 
 -ifdef(DEBUG).
+-undef(debugMsg).
+-undef(debugFmt).
 -define(debugMsg(S), error_logger:info_msg(S)).
 -define(debugFmt(S, As), error_logger:info_msg(S,As)).
 -else.
+-undef(debugMsg).
+-undef(debugFmt).
 -define(debugMsg(S), ok).
 -define(debugFmt(S, As), ok).
 -endif.

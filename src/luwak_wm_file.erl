@@ -121,7 +121,7 @@
 
 -include_lib("webmachine/include/webmachine.hrl").
 -include_lib("riak_kv/src/riak_kv_wm_raw.hrl").
--include_lib("luwak.hrl").
+-include("luwak.hrl").
 
 -define(HEAD_RANGE, "Range").
 -define(HEAD_CRANGE, "Content-Range").
