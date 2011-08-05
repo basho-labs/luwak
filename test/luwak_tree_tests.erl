@@ -1,7 +1,7 @@
 -module(luwak_tree_tests).
 
 -include_lib("eunit/include/eunit.hrl").
--include_lib("luwak/include/luwak.hrl").
+-include_lib("luwak.hrl").
 
 create_simple_tree_test() ->
   test_helper:riak_test(fun(Riak) ->
