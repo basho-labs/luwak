@@ -26,4 +26,14 @@
 -define(debugFmt(S, As), ok).
 -endif.
 
+-else.
+
+-ifdef(DEBUG).
+-define(debugMsg(S), error_logger:info_msg(S)).
+-define(debugFmt(S, As), error_logger:info_msg(S,As)).
+-else.
+-define(debugMsg(S), ok).
+-define(debugFmt(S, As), ok).
+-endif.
+
 -endif.
