@@ -1,8 +1,33 @@
 -module(luwak_io_tests).
 
+-ifdef(TEST).
+
 -include_lib("eunit/include/eunit.hrl").
 
-simple_put_range_test() ->
+io_test_() ->
+    {spawn,
+     [{setup,
+       fun test_helper:setup/0,
+       fun test_helper:cleanup/1,
+       [
+        {timeout, 60000,
+         [fun simple_put_range/0,
+          fun simple_get_range/0,
+          fun read_beyond_eof/0,
+          fun multilevel_get_range/0,
+          fun partial_end_block_get_range/0,
+          fun partial_start_block_get_range/0,
+          fun partial_middle_block_get_range/0,
+          fun eof_get_range/0,
+          fun truncate/0,
+          fun sub_block_partial_write/0,
+          fun overwrite_nonfull_block/0]}
+       ]
+      }
+     ]
+    }.
+
+simple_put_range() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,5}], dict:new()),
       {ok, Written, _} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklm">>),
@@ -18,7 +43,7 @@ simple_put_range_test() ->
       ?assertEqual([{Hash1,5},{Hash2,5},{Hash3,3}], Written)
     end).
 
-simple_get_range_test() ->
+simple_get_range() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,2},{tree_order,3}], dict:new()),
       {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklm">>),
@@ -26,8 +51,8 @@ simple_get_range_test() ->
       ok = file:write_file("tree4.dot", luwak_tree:visualize_tree(Riak, luwak_file:get_property(File1, root))),
       ?assertEqual(<<"defgh">>, iolist_to_binary(Blocks))
     end).
-    
-read_beyond_eof_test() ->
+
+read_beyond_eof() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,2},{tree_order,3}], dict:new()),
       {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklm">>),
@@ -35,7 +60,7 @@ read_beyond_eof_test() ->
       ?assertEqual([], Blocks)
     end).
 
-multilevel_get_range_test() ->
+multilevel_get_range() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,3},{tree_order,3}], dict:new()),
       {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklmnopqrstuvwxyz">>),
@@ -66,7 +91,7 @@ make_standard_range_file(Riak, Name, BlockSize, BlockCount) ->
 %% the middle of a block
 %% Ex: aaaaaaaaaa bbbbbbbbbb cccccccccc
 %%                ^start      end^
-partial_end_block_get_range_test() ->
+partial_end_block_get_range() ->
     test_helper:riak_test(
       fun(Riak) ->
               {ok, Data, File} =  make_standard_range_file(
@@ -81,7 +106,7 @@ partial_end_block_get_range_test() ->
 %% middle of a block
 %% Ex: aaaaaaaaaa bbbbbbbbbb cccccccccc
 %%          ^start       end^
-partial_start_block_get_range_test() ->
+partial_start_block_get_range() ->
     test_helper:riak_test(
       fun(Riak) ->
               {ok, Data, File} = make_standard_range_file(
@@ -96,7 +121,7 @@ partial_start_block_get_range_test() ->
 %% is unaligned with that block
 %% Ex: aaaaaaaaaa bbbbbbbbbb cccccccccc
 %%                 ^st end^
-partial_middle_block_get_range_test() ->
+partial_middle_block_get_range() ->
     test_helper:riak_test(
       fun(Riak) ->
               {ok, Data, File} = make_standard_range_file(
@@ -107,7 +132,7 @@ partial_middle_block_get_range_test() ->
               ?assertEqual(Expected, Read)
       end).
 
-eof_get_range_test() ->
+eof_get_range() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,3},{tree_order,3}], dict:new()),
       {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklmnopqrstuvwxyz">>),
@@ -116,7 +141,7 @@ eof_get_range_test() ->
       ?assertEqual(<<"uvwxyz">>, iolist_to_binary(Blocks))
     end).
 
-truncate_test() ->
+truncate() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,3},{tree_order,3}], dict:new()),
       {ok, _Written, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklmnopqrstuvwxyz">>),
@@ -126,7 +151,7 @@ truncate_test() ->
       ?assertEqual(<<"abcdefg">>, iolist_to_binary(Blocks))
     end).
 
-sub_block_partial_write_test() ->
+sub_block_partial_write() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"basho">>, [{block_size,1000}], dict:new()),
       S = luwak_put_stream:start_link(Riak, File, 0, 1000),
@@ -148,7 +173,7 @@ sub_block_partial_write_test() ->
 
 %% overwrite a file with more data than the file already had, but not
 %% enough to touch the next block boundary
-overwrite_nonfull_block_test() ->
+overwrite_nonfull_block() ->
     test_helper:riak_test(fun(Riak) ->
         {ok, F0} = luwak_file:create(Riak,
                                      <<"basho1">>,
@@ -170,3 +195,5 @@ overwrite_nonfull_block_test() ->
         ?debugFmt("blocks ~p~n", [Blocks]),
         ?assertEqual(<<"aa">>, iolist_to_binary(Blocks))
       end).
+
+-endif.

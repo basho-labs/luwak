@@ -1,8 +1,24 @@
 -module(luwak_put_stream_tests).
 
+-ifdef(TEST).
+
 -include_lib("eunit/include/eunit.hrl").
 
-aligned_put_stream_test() ->
+put_stream_test_() ->
+    {spawn,
+     [{setup,
+       fun test_helper:setup/0,
+       fun test_helper:cleanup/1,
+       [
+        {timeout, 60000,
+         [fun aligned_put_stream/0,
+          fun unaligned_put_stream/0]}
+       ]
+      }
+     ]
+    }.
+
+aligned_put_stream() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,3},{tree_order,3}], dict:new()),
       PutStream = luwak_put_stream:start(Riak, File, 0, 1000),
@@ -14,7 +30,7 @@ aligned_put_stream_test() ->
       ?assertEqual(<<"abcdefghijklmno">>, iolist_to_binary(Blocks))
     end).
 
-unaligned_put_stream_test() ->
+unaligned_put_stream() ->
   test_helper:riak_test(fun(Riak) ->
       {ok, File} = luwak_file:create(Riak, <<"file1">>, [{block_size,3},{tree_order,3}], dict:new()),
       {ok, _, File1} = luwak_io:put_range(Riak, File, 0, <<"abcdefghijklmno">>),
@@ -29,3 +45,5 @@ unaligned_put_stream_test() ->
       timer:sleep(100),
       ?assertEqual(<<"abcdzyxwvutlmno">>, iolist_to_binary(Blocks))
     end).
+
+-endif.

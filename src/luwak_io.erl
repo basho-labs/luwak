@@ -5,7 +5,7 @@
          truncate/3,
          no_tree_put_range/4]).
 
--include_lib("luwak.hrl").
+-include("luwak.hrl").
 
 %% @spec put_range(Riak :: riak(), File :: luwak_file(),
 %%                 Start :: int(), Data :: binary()) ->

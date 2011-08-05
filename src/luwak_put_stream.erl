@@ -4,7 +4,7 @@
 -record(state, {file,offset,blocksize,ref,ttl,written=[],buffer=[],
                 buffersize=0,checksumming=false,ctx=crypto:sha_init()}).
 
--include_lib("luwak.hrl").
+-include("luwak.hrl").
 
 %% API
 -export([start_link/4,

@@ -1,6 +1,6 @@
 -module(luwak_tree_utils).
 
--include_lib("luwak.hrl").
+-include("luwak.hrl").
 
 -export([longest_divisable_subtree/2,
          longest_divisable_subtree/4, 
