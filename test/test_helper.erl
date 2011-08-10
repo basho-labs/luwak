@@ -20,10 +20,12 @@
 
 setup() ->
     stop_riak(),
+    timer:sleep(100),
     start_riak().
 
 cleanup(_) ->
     stop_riak(),
+    timer:sleep(100),
     net_kernel:stop().
 
 riak_test(Fun) ->
@@ -88,6 +90,9 @@ ensure_started(App) ->
           ok;
       {error,{already_started,App}} ->
           ok;
+      {error,{shutdown,_}} ->
+          timer:sleep(250),
+          ensure_started(App);
       Error ->
           throw({"failed to start", App, Error})
   end.
