@@ -39,7 +39,9 @@ riak_test(Fun) ->
 
 start_riak() ->
     [] = os:cmd("epmd -daemon"),
-    case net_kernel:start([test_luwak, shortnames]) of
+    TestNode = list_to_atom("testnode" ++ integer_to_list(element(3, now())) ++
+                                integer_to_list(element(2, now()))),
+    case net_kernel:start([TestNode, shortnames]) of
         {ok,_} -> ok;
         {error,{already_started,_}} -> ok
     end,
@@ -65,6 +67,7 @@ stop_riak() ->
                    application:stop(App)
            end,
     lists:foreach(Stop, lists:reverse(?APPS)),
+    os:cmd("rm -rfv ./data"),
     application:stop(sasl),
     application:set_env(sasl, sasl_error_logger, erase(old_sasl_l)).
 
