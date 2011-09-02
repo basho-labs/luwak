@@ -45,7 +45,7 @@ start_riak() ->
         {ok,_} -> ok;
         {error,{already_started,_}} -> ok
     end,
-    application:set_env(riak_kv, storage_backend, riak_kv_cache_backend),
+    application:set_env(riak_kv, storage_backend, riak_kv_memory_backend),
     error_logger:delete_report_handler(error_logger_tty_h),
     _ = application:load(sasl),
     put(old_sasl_l, app_helper:get_env(sasl, sasl_error_logger)),
