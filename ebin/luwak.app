@@ -1,7 +1,7 @@
 {application, luwak,
  [
   {description, "luwak"},
-  {vsn, "1.1.0"},
+  {vsn, "1.1.1"},
   {modules, [
              luwak_app,
              luwak_io,
