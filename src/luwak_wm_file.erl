@@ -531,8 +531,8 @@ accept_streambody(RD, #ctx{handle={ok, H}, client=C, method=Method}) ->
     {H2, Count} = accept_streambody1(Stream, 0, wrq:stream_req_body(RD, Size)),
     H2Len = luwak_file:length(C, H2),
     %% truncate will fail if passed a Start >= the length of the file
-    if Count < H2Len ->
-            {ok, _} = luwak_io:truncate(C, H2, Count),
+    if Offset+Count < H2Len ->
+            {ok, _} = luwak_io:truncate(C, H2, Offset+Count),
             true;
        true -> true
     end.
