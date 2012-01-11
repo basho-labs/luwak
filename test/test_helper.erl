@@ -52,8 +52,11 @@ start_riak() ->
     LogFile = "./luwak-eunit-sasl.log",
     ok = application:set_env(sasl, sasl_error_logger, {file, LogFile}),
     application:start(sasl),
+    application:start(lager),
     error_logger:delete_report_handler(sasl_report_tty_h),
-    load_and_start_apps(?APPS).
+    load_and_start_apps(?APPS),
+    riak_core:wait_for_service(riak_kv),
+    riak_core:wait_for_service(riak_pipe).
 
 stop_riak() ->
     case whereis(riak_core_ring_manager) of
