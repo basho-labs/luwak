@@ -20,7 +20,8 @@
                   stdlib,
                   skerl,
                   webmachine,
-                  riak_kv
+                  riak_kv,
+                  erlang_js
                  ]},
   {mod, { luwak_app, []}},
   {env, []}
