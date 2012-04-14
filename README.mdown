@@ -3,6 +3,77 @@ Luwak
 
 The Riak key/value store is extremely fast and reliable, but has limitations on the size of object that preclude its use for some applications.  For example, storing high definition still images or video is difficult or impossible.  Luwak is a service layer on Riak that provides a simple, file-oriented abstraction for enormous objects.
 
+Installation
+========
+
+To use Luwak, you must build Riak from source after modifying a few of Riak's configuration files.  Start with a clean clone of riak:
+
+    git clone git://github.com/basho/riak
+
+In the top-level directory of your clone, edit the `rebar.config` file.  Add `luwak` as a dependency to make rebar fetch it at build time:
+
+```diff
+diff --git a/rebar.config b/rebar.config
+index 5288dd4..40ff6fb 100644
+--- a/rebar.config
++++ b/rebar.config
+@@ -9,6 +9,7 @@
+ {erl_opts, [debug_info, fail_on_warning]}.
+ 
+ {deps, [
++       {luwak, ".*", {git, "git://github.com/basho/luwak"}},
+        {cluster_info, ".*", {git, "git://github.com/basho/cluster_info", {branc
+        {riak_kv, ".*", {git, "git://github.com/basho/riak_kv", {branch, "master
+        {riak_search, ".*", {git, "git://github.com/basho/riak_search",
+```
+
+Next, edit `rel/reltool.config` to tell rebar and reltool to pull `luwak` and `skerl` (a Luwak dependency) into the embedded node at generation time:
+
+```diff
+diff --git a/rel/reltool.config b/rel/reltool.config
+index 181fcd0..3c68f5d 100644
+--- a/rel/reltool.config
++++ b/rel/reltool.config
+@@ -4,6 +4,8 @@
+        {lib_dirs, ["../deps", "../deps/riak_search/apps"]},
+        {rel, "riak", "1.1.1",
+         [
++         luwak,
++         skerl,
+          kernel,
+          stdlib,
+          sasl,
+@@ -38,6 +40,8 @@
+        {excl_sys_filters, ["^bin/.*",
+                            "^erts.*/bin/(dialyzer|typer)"]},
+        {excl_archive_filters, [".*"]},
++       {app, skerl, [{incl_cond, include}]},
++       {app, luwak, [{incl_cond, include}]},
+        {app, cluster_info, [{incl_cond, include}]},
+        {app, erlang_js, [{incl_cond, include}]},
+        {app, luke, [{incl_cond, include}]},
+```
+
+Finally, enable luwak in the generated node by editing the `app.config` file (do this in `rel/files/app.config` so Luwak is always enabled every time you regenerate the node):
+
+```diff
+diff --git a/rel/files/app.config b/rel/files/app.config
+index 85407df..733aa48 100644
+--- a/rel/files/app.config
++++ b/rel/files/app.config
+@@ -1,6 +1,8 @@
+ %% -*- mode: erlang;erlang-indent-level: 4;indent-tabs-mode: nil -*-
+ %% ex: ft=erlang ts=4 sw=4 et
+ [
++ {luwak, [{enabled, true}]},
++
+  %% Riak Core config
+  {riak_core, [
+               %% Default location of ringstate
+```
+
+After these changes, a simple `make all rel` should build a Riak node in `rel/riak`, as usual, with Luwak included and enabled.
+
 Examples
 ========
 
