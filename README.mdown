@@ -110,7 +110,7 @@ Luwak can also operate asynchronously, allowing you to stream your reads and wri
     {ok, File} = luwak_file:create(Riak, <<"mystreamingfile">>, dict:new()),
     PutStream = luwak_put_stream:start(Riak, File, 0, 1000),
     luwak_put_stream:send(PutStream, <<"mymilkshake">>),
-    luwak_put_stream:send(PutStream, <<"bringsalltheboy">>),
+    luwak_put_stream:send(PutStream, <<"bringsalltheboys">>),
     luwak_put_stream:send(PutStream, <<"totheyard">>),
     luwak_put_stream:close(PutStream),
     {ok, File1} = luwak_put_stream:status(File),
